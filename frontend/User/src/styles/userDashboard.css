@@ -1,0 +1,233 @@
+/* ========== GLOBAL FULL SCREEN LAYOUT FIX ========== */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: auto; /* Prevent scrollbars unless needed */
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f6f8;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== DASHBOARD WRAPPER ========== */
+.dashboard-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+/* ========== NAVBAR ========== */
+.navbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ========== DASHBOARD CONTENT ========== */
+.dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.top-bar-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actions button {
+  padding: 6px 12px;
+  margin-left: 8px;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.quick-add {
+  background-color: #10b981;
+  color: white;
+}
+.view-asset {
+  background-color: #fff;
+  color: #000;
+}
+
+.view-asset:hover{
+  background-color: #059669;
+}
+.quick-add:hover {
+  background-color: #059669;
+}
+
+/* ========== CARD GRID (used inside Cardsection) ========== */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  background: #059669;
+}
+
+/* ========== ACTIVITY LIST ========== */
+.activity-list {
+  max-height: 300px;
+  width: 100%;
+  overflow-y: auto;
+  border: 1px solid #effaf1;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== ACTIVITY ITEM ========== */
+.activity-item {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.activity-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 1rem;
+}
+.activity-credits {
+  background-color: #10b981;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.activity-detail {
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+.activity-time {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* ========== FAQ ========== */
+.faq-section {
+  margin-top: 40px;
+  margin-bottom: 60px;
+}
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.faq-item {
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  cursor: pointer;
+}
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.faq-answer {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ========== RESPONSIVE MEDIA QUERIES ========== */
+
+/* Tablets (<=1024px) */
+@media (max-width: 1024px) {
+  .dashboard {
+    padding: 16px;
+  }
+}
+
+/* Mobiles (<=768px) */
+@media (max-width: 768px) {
+  .navbar-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .top-bar-button {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+  .activity-item {
+    padding: 16px;
+  }
+  .faq-question {
+    font-size: 1rem;
+  }
+  .faq-answer {
+    font-size: 13px;
+  }
+}
+
+/* Small Mobiles (<=480px) */
+@media (max-width: 480px) {
+  .navbar-container {
+    padding: 10px 16px;
+  }
+  .dashboard {
+    padding: 12px;
+  }
+  .card-grid {
+    gap: 12px;
+  }
+  .activity-item {
+    padding: 12px 14px;
+  }
+  .faq-section h2 {
+    font-size: 1.4rem;
+  }
+  .faq-question {
+    font-size: 0.95rem;
+  }
+}
