@@ -4,6 +4,9 @@ import "../styles/Login.css";
 import { RxCross1 } from "react-icons/rx";
 
 const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
+  // ✅ Use environment variable for API URL
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -18,20 +21,37 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
+    // Clear error for this field when user starts typing
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+    
+    // Clear general error too
+    if (errors.general) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.general;
+        return newErrors;
+      });
     }
   };
 
-  // ✅ Validate form before submit
+  // ✅ Enhanced validation
   const validateForm = () => {
     const newErrors = {};
+    
+    // Email validation
     if (!formData.email) {
       newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Invalid email format";
     }
 
+    // Password validation
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
@@ -42,65 +62,95 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Handle form submit
+  // ✅ Handle form submit with improved error handling
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form first
     if (!validateForm()) return;
 
     setLoading(true);
     setErrors({});
 
     try {
-      const response = await fetch("https://tn-backend-95q7.onrender.com/api/auth/login", {
+      // ✅ Use environment variable instead of hardcoded URL
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email.toLowerCase().trim(), // ✅ Normalize email
+          password: formData.password,
+        }),
       });
 
       const data = await response.json();
       console.log("🟢 Login API Response:", data);
 
-      // ❌ If request failed
+      // ✅ Handle different error status codes
       if (!response.ok) {
-        setErrors({ general: data.message || data.error || "Invalid email or password" });
+        if (response.status === 429) {
+          setErrors({ general: "Too many login attempts. Please try again later." });
+        } else if (response.status === 400) {
+          setErrors({ general: data.message || "Invalid email or password" });
+        } else if (response.status === 500) {
+          setErrors({ general: "Server error. Please try again later." });
+        } else {
+          setErrors({ general: data.message || "Login failed. Please try again." });
+        }
         return;
       }
 
-      // ✅ Ensure backend sends user + token
+      // ✅ Validate response data
       if (!data.user || !data.token) {
         setErrors({ general: "Login failed. Missing token or user data." });
         return;
       }
 
-      // ✅ Check if user is verified (updated for 'verified' column)
+      // ✅ Check if user is verified
       if (!data.user.verified) {
         setErrors({ general: "Please verify your email first." });
         return;
       }
 
-      // ✅ Save data to localStorage
+      // ✅ Save data to localStorage (consider using httpOnly cookies in production)
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("userId", data.user.u_id);
 
+      // Call onLogin callback if provided
       if (onLogin) onLogin(data.user);
       if (onClose) onClose();
 
-      // ✅ Role-based redirect
+      // ✅ Role-based redirect with proper role handling
       const role = data.user.role_name?.toUpperCase();
 
-      if (role === "USER") {
-        navigate("/userDashboard");
-      } else if (role === "ORGANIZATION") {
-        navigate("/orgDashboard");
-      } else if (role === "ADMIN") {
-        navigate("/adminDashboard");
-      } else {
-        navigate("/"); // fallback
+      switch (role) {
+        case "USER":
+          navigate("/userDashboard");
+          break;
+        case "ORGANIZATION":
+          navigate("/orgDashboard");
+          break;
+        case "ADMIN":
+          navigate("/adminDashboard");
+          break;
+        default:
+          console.warn("Unknown role:", role);
+          navigate("/"); // fallback to home
       }
     } catch (err) {
       console.error("❌ Login Error:", err);
-      setErrors({ general: "Server error. Please try again later." });
+      
+      // ✅ Better error messages based on error type
+      if (err.name === "TypeError" && err.message.includes("fetch")) {
+        setErrors({ general: "Cannot connect to server. Please check your connection." });
+      } else if (err.name === "SyntaxError") {
+        setErrors({ general: "Invalid response from server. Please try again." });
+      } else {
+        setErrors({ general: "An unexpected error occurred. Please try again later." });
+      }
     } finally {
       setLoading(false);
     }
@@ -114,59 +164,97 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
           <h2>Welcome Back</h2>
           <p>Sign in to your account</p>
           {onClose && (
-            <button className="close-btn" onClick={onClose}>
+            <button 
+              className="close-btn" 
+              onClick={onClose}
+              type="button"
+              aria-label="Close login form"
+            >
               <RxCross1 size={24} />
             </button>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {/* Email */}
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          {/* Email Field */}
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
               type="email"
+              id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               className={errors.email ? "error" : ""}
               placeholder="Enter your email"
+              disabled={loading}
+              autoComplete="email"
+              required
             />
             {errors.email && (
-              <span className="error-message">{errors.email}</span>
+              <span className="error-message" role="alert">
+                {errors.email}
+              </span>
             )}
           </div>
 
-          {/* Password */}
+          {/* Password Field */}
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <input
               type="password"
+              id="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               className={errors.password ? "error" : ""}
               placeholder="Enter your password"
+              disabled={loading}
+              autoComplete="current-password"
+              required
             />
             {errors.password && (
-              <span className="error-message">{errors.password}</span>
+              <span className="error-message" role="alert">
+                {errors.password}
+              </span>
             )}
           </div>
 
-          {/* General error */}
+          {/* General Error Message */}
           {errors.general && (
-            <p className="error-message center">{errors.general}</p>
+            <div className="error-banner" role="alert">
+              <p className="error-message center">{errors.general}</p>
+            </div>
           )}
 
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Signing In..." : "Sign In"}
+          {/* Submit Button */}
+          <button 
+            type="submit" 
+            className="auth-btn" 
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner" aria-hidden="true"></span>
+                Signing In...
+              </>
+            ) : (
+              "Sign In"
+            )}
           </button>
         </form>
 
+        {/* Footer */}
         <div className="auth-footer">
           <p>
-            Don’t have an account?{" "}
-            <button className="link-btn" onClick={onSwitchToSignup}>
+            Don't have an account?{" "}
+            <button 
+              className="link-btn" 
+              onClick={onSwitchToSignup}
+              type="button"
+              disabled={loading}
+            >
               Sign Up
             </button>
           </p>
