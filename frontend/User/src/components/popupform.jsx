@@ -1,6 +1,10 @@
-// PopupForms.js - React component file with all three popup forms
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import evService from '../services/evService';
+import solarService from '../services/solarService';
+import treeService from '../services/treeService';
+import { toast as toastify } from 'react-toastify';
 import '../styles/popupform.css';
+
 const PopupForms = ({
     activeEVPopup,
     setActiveEVPopup,
@@ -12,68 +16,42 @@ const PopupForms = ({
     handleSaveTree,
     handleSaveSolar,
     setEvCount,
-    setSolarCount // ✅ Add this line!
+    setSolarCount
 }) => {
-
-
-
-
-
-    // State for managing popups
-
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
-    // List state for fetched data
-    const [evList, setEvList] = useState([]);      // All EVs from backend
-    const [treeList, setTreeList] = useState([]);  // All trees from backend
-    const [solarPanels, setSolarPanels] = useState([]); // All solar panels from backend
-
-
-
-
-
-   const [solarPanelData, setSolarPanelData] = useState({
-  Installed_Capacity: '',
-  Installation_Date: '',
-  Energy_Generation_Value: '',
-  Energy_Generation: '',
-  Grid_Emission_Factor: '',
-  Inverter_Type: '',
-  Panel_Efficiency: ''
-});
-
-
-
+    // State for forms
     const [evData, setEVData] = useState({
         manufacturer: '',
         model: '',
         year: '',
-        batteryCapacity: '',
+        batteryconsumed: '',
         range: '',
-        EVCategory:'',
+        EVCategory: '',
         chargingType: '',
-        averageMileage: '',
-        homeCharging: 'yes',
-        publicCharging: 'sometimes',
-        lastServiceDate: ''
+        gridEmissionFactor: '',
+        topSpeed: '',
+        chargingTime: '',
+        motorpower: ''
     });
+
+    const [solarPanelData, setSolarPanelData] = useState({
+        Installed_Capacity: '',
+        Installation_Date: '',
+        Energy_Generation_Value: '',
+        Grid_Emission_Factor: '',
+        Inverter_Type: ''
+    });
+
     const [treeData, setTreeData] = useState({
-  TreeName: '',
-  BotanicalName: '', // ✅ add this line
-  PlantingDate: '',
-  DBH: '',
-  Height: '',
-  location: '',
-  photos: [],
-});
+        TreeName: '',
+        BotanicalName: '',
+        PlantingDate: '',
+        Height: '',
+        location: '',
+        photos: []
+    });
 
-
-
-
-    
-
-
-    // Toast notification handler
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => {
@@ -81,82 +59,19 @@ const PopupForms = ({
         }, 3000);
     };
 
-
-  const handleSolarSubmit = async (e) => {
-    e.preventDefault();
-
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    const U_ID = storedUser?.u_id;
-
-    if (!U_ID) {
-        showToast('User not logged in', 'error');
-        return;
-    }
-
-    const payload = {
-        SUID: crypto.randomUUID(),
-        U_ID,
-        Installed_Capacity: solarPanelData.Installed_Capacity,
-        Installation_Date: solarPanelData.Installation_Date,
-        Energy_Generation_Value: Number(solarPanelData.Energy_Generation_Value),
-       
-        Grid_Emission_Factor: Number(solarPanelData.Grid_Emission_Factor),
-        Inverter_Type: solarPanelData.Inverter_Type,
-       
-    };
-
-    // ✅ Debug log
-    console.log('Submitting Solar Panel Payload:', payload);
-
-    // ✅ Quick client-side validation
-    const missingFields = Object.entries(payload).filter(([_, val]) =>
-        val === undefined || val === null || val === '' || (typeof val === 'string' && val.trim() === '')
-    );
-
-    if (missingFields.length > 0) {
-        showToast(`Missing fields: ${missingFields.map(f => f[0]).join(', ')}`, 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('https://add-asset-service.onrender.com/api/solarpanel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-            const { data: savedSolar, solarCount } = await response.json();
-            setSolarCount(solarCount);
-            showToast(`Solar Panel saved! Total: ${solarCount}`, 'success');
-            handleSaveSolar(savedSolar);
-            setActiveSolarPopup(false);
-        } else {
-            const err = await response.json();
-            showToast('Failed: ' + (err.message || 'Unknown error'), 'error');
-        }
-    } catch (err) {
-        showToast('Server error: ' + err.message, 'error');
-    }
-};
-
-
-
+    // ===== EV SUBMIT =====
     const handleEVSubmit = async (e) => {
         e.preventDefault();
 
-        // 🔑 Get the logged-in user from localStorage
         const storedUser = JSON.parse(localStorage.getItem('user'));
-        const U_ID = storedUser?.u_id;
+        const U_ID = storedUser?.u_id || 'USR_SAMPLE_001';
 
         if (!U_ID) {
             showToast('User not logged in or invalid session', 'error');
             return;
         }
 
-        // 📦 Construct payload
         const payload = {
-            VUID: crypto.randomUUID(), // Generate unique VUID on frontend
             U_ID,
             Category: evData.EVCategory,
             Manufacturers: evData.manufacturer,
@@ -171,141 +86,220 @@ const PopupForms = ({
             Motor_Power: evData.motorpower || null
         };
 
+        console.log('Submitting EV Payload:', payload);
+
         try {
-            const response = await fetch('https://add-asset-service.onrender.com/api/evmasterdata', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                const { data: savedEV, evCount } = await response.json();
-
-                // ✅ Only call if it's a valid function
+            const response = await evService.createEV(payload);
+            
+            if (response.status === 'success') {
+                showToast(`EV saved successfully!`, 'success');
+                toastify.success('EV added successfully!');
+                
+                if (typeof handleSaveEV === 'function') {
+                    handleSaveEV(response.data);
+                }
+                
                 if (typeof setEvCount === 'function') {
-                    setEvCount(evCount);
+                    setEvCount(response.count || 1);
                 }
 
-                showToast(`EV saved! Total EVs: ${evCount}`, 'success');
-                handleSaveEV(savedEV);
-                // ✅ Save new activity to localStorage
-const newActivity = {
-    title: "EV Added",
-    detail: `${evData.manufacturer} ${evData.model} - ${evData.range} km range`,
-    time: "Just now",
-    credits: 20,            // Adjust as per logic
-    color: "bg-blue-100"
-};
-
-localStorage.setItem("latestActivity", JSON.stringify(newActivity));
-
-                setActiveEVPopup(false); // Close the popup
+                // Reset form
+                setEVData({
+                    manufacturer: '',
+                    model: '',
+                    year: '',
+                    batteryconsumed: '',
+                    range: '',
+                    EVCategory: '',
+                    chargingType: '',
+                    gridEmissionFactor: '',
+                    topSpeed: '',
+                    chargingTime: '',
+                    motorpower: ''
+                });
+                
+                setActiveEVPopup(false);
             } else {
-                const errMsg = await response.text();
-                console.error("EV submit failed:", errMsg);
-                showToast('Failed to save EV: ' + errMsg, 'error');
+                showToast('Failed to save EV', 'error');
+                toastify.error(response.message || 'Failed to save EV');
             }
         } catch (error) {
             console.error("EV submit error:", error);
-            showToast('Server error! ' + error.message, 'error');
+            showToast('Server error! ' + (error.message || ''), 'error');
+            toastify.error('Failed to add EV: ' + (error.message || 'Unknown error'));
         }
     };
 
+    // ===== SOLAR SUBMIT =====
+    const handleSolarSubmit = async (e) => {
+        e.preventDefault();
 
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const U_ID = storedUser?.u_id || 'USR_SAMPLE_001';
 
-const handleTreeSubmit = async (e) => {
-    e.preventDefault();
-
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    const U_ID = storedUser?.u_id;
-
-    if (!U_ID) {
-        showToast('User ID not found. Please login again.', 'error');
-        return;
-    }
-
-    try {
-        let imageUrls = [];
-
-        // ✅ Pehle images upload karo agar photos hai
-        if (treeData.photos && treeData.photos.length > 0) {
-            const formData = new FormData();
-            treeData.photos.forEach((photo) => {
-                const blob = dataURLtoBlob(photo);
-                formData.append('images', blob);
-            });
-
-            const imageRes = await fetch('https://add-asset-service.onrender.com/api/image/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const imageData = await imageRes.json();
-            if (!imageRes.ok) {
-                showToast(imageData.message || 'Failed to upload images.', 'error');
-                return;
-            }
-
-            console.log('✅ Uploaded images:', imageData.imageUrls);
-            imageUrls = imageData.imageUrls;
+        if (!U_ID) {
+            showToast('User not logged in', 'error');
+            return;
         }
 
-        // ✅ Tree payload banayo
         const payload = {
-            UID: U_ID,
-            TreeName: treeData.TreeName,
-            BotanicalName: treeData.BotanicalName,
-            PlantingDate: treeData.PlantingDate,
-            Height: parseFloat(treeData.Height),
-            Location: treeData.location,
-            imageIds: imageUrls,
-            CreatedBy: storedUser?.name || "DefaultUser"
+            U_ID,
+            Capacity_kW: parseFloat(solarPanelData.Installed_Capacity),
+            Installation_Year: new Date(solarPanelData.Installation_Date).getFullYear(),
+            Energy_Generated_kWh: parseFloat(solarPanelData.Energy_Generation_Value),
+            Grid_Emission_Factor: parseFloat(solarPanelData.Grid_Emission_Factor),
+            Inverter_Type: solarPanelData.Inverter_Type,
+            Panel_Type: 'Monocrystalline',
+            Manufacturers: 'Generic',
+            Model: 'Standard Panel',
+            Panel_Efficiency: 20,
+            Area_sqm: 15,
+            Orientation: 'South',
+            Tilt_Angle: 30
         };
 
-        // ✅ Tree save request
-        const response = await fetch('https://add-asset-service.onrender.com/api/tree', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        console.log('Submitting Solar Panel Payload:', payload);
 
-        if (response.ok) {
-            showToast('Tree data saved successfully!', 'success');
-            setActiveTreePopup(false);
-        } else {
-            const data = await response.json();
-            showToast(data.message || 'Failed to save tree data.', 'error');
+        const missingFields = Object.entries(payload).filter(([key, val]) =>
+            ['U_ID', 'Capacity_kW', 'Installation_Year', 'Energy_Generated_kWh', 'Grid_Emission_Factor', 'Inverter_Type'].includes(key) &&
+            (val === undefined || val === null || val === '' || (typeof val === 'string' && val.trim() === ''))
+        );
+
+        if (missingFields.length > 0) {
+            showToast(`Missing fields: ${missingFields.map(f => f[0]).join(', ')}`, 'error');
+            return;
         }
 
-    } catch (error) {
-        console.error(error);
-        showToast('Server error!', 'error');
+        try {
+            const response = await solarService.createSolarPanel(payload);
+
+            if (response.status === 'success') {
+                showToast(`Solar Panel saved successfully!`, 'success');
+                toastify.success('Solar panel added successfully!');
+                
+                if (typeof handleSaveSolar === 'function') {
+                    handleSaveSolar(response.data);
+                }
+                
+                if (typeof setSolarCount === 'function') {
+                    setSolarCount(response.count || 1);
+                }
+
+                // Reset form
+                setSolarPanelData({
+                    Installed_Capacity: '',
+                    Installation_Date: '',
+                    Energy_Generation_Value: '',
+                    Grid_Emission_Factor: '',
+                    Inverter_Type: ''
+                });
+                
+                setActiveSolarPopup(false);
+            } else {
+                showToast('Failed: ' + (response.message || 'Unknown error'), 'error');
+                toastify.error(response.message || 'Failed to save solar panel');
+            }
+        } catch (error) {
+            console.error('Solar submit error:', error);
+            showToast('Server error: ' + (error.message || ''), 'error');
+            toastify.error('Failed to add solar panel: ' + (error.message || 'Unknown error'));
+        }
+    };
+
+    // ===== TREE SUBMIT =====
+    const handleTreeSubmit = async (e) => {
+        e.preventDefault();
+
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const U_ID = storedUser?.u_id || 'USR_SAMPLE_001';
+
+        if (!U_ID) {
+            showToast('User ID not found. Please login again.', 'error');
+            return;
+        }
+
+        try {
+            const plantingYear = new Date(treeData.PlantingDate).getFullYear();
+            const currentYear = new Date().getFullYear();
+            
+            const payload = {
+                U_ID,
+                Common_Name: treeData.TreeName,
+                Scientific_Name: treeData.BotanicalName,
+                Tree_Type: 'Deciduous',
+                Planting_Year: plantingYear,
+                Location: treeData.location,
+                Age_Years: Math.max(0, currentYear - plantingYear),
+                Height_m: parseFloat(treeData.Height) / 100, // Convert cm to m
+                Diameter_cm: 10,
+                CO2_Absorbed_kg: 21,
+                Image_URL: 'https://via.placeholder.com/400'
+            };
+
+            console.log('Submitting Tree Payload:', payload);
+
+            const response = await treeService.createTree(payload);
+
+            if (response.status === 'success') {
+                showToast('Tree data saved successfully!', 'success');
+                toastify.success('Tree planted successfully!');
+                
+                if (typeof handleSaveTree === 'function') {
+                    handleSaveTree(response.data);
+                }
+
+                // Upload images if any
+                if (treeData.photos && treeData.photos.length > 0 && response.data?.TID) {
+                    const blob = dataURLtoBlob(treeData.photos[0]);
+                    const file = new File([blob], 'tree-image.jpg', { type: 'image/jpeg' });
+                    
+                    try {
+                        await treeService.uploadTreeImage(U_ID, response.data.TID, file);
+                        showToast('Tree image uploaded!', 'success');
+                    } catch (imgError) {
+                        console.error('Image upload failed:', imgError);
+                    }
+                }
+
+                // Reset form
+                setTreeData({
+                    TreeName: '',
+                    BotanicalName: '',
+                    PlantingDate: '',
+                    Height: '',
+                    location: '',
+                    photos: []
+                });
+                
+                setActiveTreePopup(false);
+            } else {
+                showToast(response.message || 'Failed to save tree data.', 'error');
+                toastify.error(response.message || 'Failed to save tree');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Server error!', 'error');
+            toastify.error('Failed to add tree: ' + (error.message || 'Unknown error'));
+        }
+    };
+
+    // Helper function: dataURL to Blob
+    function dataURLtoBlob(dataURL) {
+        const byteString = atob(dataURL.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: 'image/jpeg' });
     }
-};
 
-// ✅ Helper function: dataURL to Blob
-function dataURLtoBlob(dataURL) {
-  const byteString = atob(dataURL.split(',')[1]);
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  const blob = new Blob([ab], { type: 'image/jpeg' });
-  return blob;
-}
-
-
-    // File upload handler for tree photos
-
-
-
-  const removePhoto = (index) => {
-    setTreeData((prev) => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-    }));
-  };
+    const removePhoto = (index) => {
+        setTreeData((prev) => ({
+            ...prev,
+            photos: prev.photos.filter((_, i) => i !== index)
+        }));
+    };
 
     return (
         <div>
@@ -337,11 +331,9 @@ function dataURLtoBlob(dataURL) {
                                     onChange={(e) => setEVData({ ...evData, EVCategory: e.target.value })}
                                     required
                                 >
-                                    <option value="" disabled hidden>
-            -- Select Vehicle Category --
-        </option>
+                                    <option value="" disabled hidden>-- Select Vehicle Category --</option>
                                     <option value="Two-Wheelers">Two-Wheelers</option>
-                                    <option value="Three-Wheeler">Three-Wheeler </option>
+                                    <option value="Three-Wheeler">Three-Wheeler</option>
                                     <option value="Hatchbacks">Hatchbacks</option>
                                     <option value="Sedans">Sedans</option>
                                     <option value="SUVs">SUVs</option>
@@ -350,7 +342,7 @@ function dataURLtoBlob(dataURL) {
                                     <option value="Trucks">Trucks</option>
                                     <option value="Vans">Vans</option>
                                     <option value="Tractors">Tractors</option>
-                                    <option value="nForklifts">Forklifts</option>
+                                    <option value="Forklifts">Forklifts</option>
                                     <option value="NEVs">NEVs</option>
                                     <option value="Golf Carts">Golf Carts</option>
                                 </select>
@@ -368,9 +360,6 @@ function dataURLtoBlob(dataURL) {
                                 />
                             </div>
                         </div>
-
-
-
 
                         <div className="form-row">
                             <div className="form-group">
@@ -401,11 +390,9 @@ function dataURLtoBlob(dataURL) {
                             </div>
                         </div>
 
-
-
                         <div className="form-row">
                             <div className="form-group">
-                                <label htmlFor="energyConsumed">Energy consumed(kWh)</label>
+                                <label htmlFor="energyConsumed">Energy consumed (kWh)</label>
                                 <input
                                     type="number"
                                     id="energyconsumed"
@@ -427,9 +414,7 @@ function dataURLtoBlob(dataURL) {
                                     onChange={(e) => setEVData({ ...evData, chargingType: e.target.value })}
                                     required
                                 >
-                                    <option value="" disabled hidden>
-                                            -- Select Charging Type --
-                                         </option>
+                                    <option value="" disabled hidden>-- Select Charging Type --</option>
                                     <option value="level1">Level 1 (120V)</option>
                                     <option value="level2">Level 2 (240V)</option>
                                     <option value="dcfast">DC Fast Charging</option>
@@ -438,11 +423,9 @@ function dataURLtoBlob(dataURL) {
                             </div>
                         </div>
 
-
-
                         <div className="form-row">
                             <div className="form-group">
-                                <label htmlFor="range">Range (Km) </label>
+                                <label htmlFor="range">Range (Km)</label>
                                 <input
                                     type="number"
                                     id="range"
@@ -460,7 +443,8 @@ function dataURLtoBlob(dataURL) {
                                     type="number"
                                     id="gridEmissionFactor"
                                     className="form-control"
-                                    placeholder="e.g., 5 "
+                                    placeholder="e.g., 0.5"
+                                    step="0.1"
                                     min="0"
                                     value={evData.gridEmissionFactor}
                                     onChange={(e) => setEVData({ ...evData, gridEmissionFactor: e.target.value })}
@@ -469,57 +453,44 @@ function dataURLtoBlob(dataURL) {
                             </div>
                         </div>
 
-
-
-
                         <div className="form-row">
-
                             <div className="form-group">
-                                <label htmlFor="topSpeed">Top Speed</label>
+                                <label htmlFor="topSpeed">Top Speed (km/h)</label>
                                 <input
                                     type="number"
                                     id="topSpeed"
                                     className="form-control"
-                                    placeholder="e.g., 80km/h"
+                                    placeholder="e.g., 180"
                                     min="0"
                                     value={evData.topSpeed}
                                     onChange={(e) => setEVData({ ...evData, topSpeed: e.target.value })}
-                                    required
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="chargingTime">Charging time</label>
+                                <label htmlFor="chargingTime">Charging time (hours)</label>
                                 <input
                                     type="number"
                                     id="chargingTime"
                                     className="form-control"
-                                    placeholder="e.g., 1 hr"
+                                    placeholder="e.g., 8"
+                                    step="0.5"
                                     min="0"
                                     value={evData.chargingTime}
                                     onChange={(e) => setEVData({ ...evData, chargingTime: e.target.value })}
-                                    required
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="motorpower">Motor power</label>
+                                <label htmlFor="motorpower">Motor power (HP)</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     id="motorpower"
                                     className="form-control"
-                                    placeholder="e.g., 5 w"
-                                    min="0"
+                                    placeholder="e.g., 200 HP"
                                     value={evData.motorpower}
                                     onChange={(e) => setEVData({ ...evData, motorpower: e.target.value })}
-                                    required
                                 />
                             </div>
-
-
                         </div>
-
-
-
-
 
                         <div className="form-actions">
                             <button type="button" className="btn-primary btn-cancel" onClick={() => setActiveEVPopup(false)}>Cancel</button>
@@ -528,164 +499,6 @@ function dataURLtoBlob(dataURL) {
                     </form>
                 </div>
             </div>
-            {/* Tree Popup */}
-<div className={`popup-overlay ${activeTreePopup ? 'active' : ''}`} onClick={() => setActiveTreePopup(false)}>
-    <div className={`popup ${activeTreePopup ? 'active' : ''}`} onClick={e => e.stopPropagation()}>
-        <div className="popup-header">
-            <h2>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF9800" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 14l-5-5-5 5"></path>
-                    <path d="M12 9v12"></path>
-                    <path d="M12 3a5 5 0 0 1 5 5c0 2-3 3-5 3s-5-1-5-3a5 5 0 0 1 5-5z"></path>
-                </svg>
-                Tree Planting Details
-            </h2>
-            <button className="popup-close" onClick={() => setActiveTreePopup(false)}>×</button>
-        </div>
-        <form onSubmit={handleTreeSubmit}>
-
-            <div className="form-row">
-                <div className="form-group">
-                    <label htmlFor="TreeName">Tree Name</label>
-                    <input
-                        type="text"
-                        id="TreeName"
-                        className="form-control"
-                        placeholder="e.g., Mango, Pine, Neem"
-                        value={treeData.TreeName}
-                        onChange={(e) => setTreeData({ ...treeData, TreeName: e.target.value })}
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="BotanicalName">Botanical Name</label>
-                    <input
-                        type="text"
-                        id="BotanicalName"
-                        className="form-control"
-                        placeholder="e.g., Mangifera indica"
-                        value={treeData.BotanicalName}
-                        onChange={(e) => setTreeData({ ...treeData, BotanicalName: e.target.value })}
-                        required
-                    />
-                </div>
-            </div>
-
-            <div className="form-row">
-                <div className="form-group">
-                    <label htmlFor="PlantingDate">Planting Date</label>
-                    <input
-                        type="date"
-                        id="PlantingDate"
-                        className="form-control"
-                        value={treeData.PlantingDate}
-                        onChange={(e) => setTreeData({ ...treeData, PlantingDate: e.target.value })}
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="Height">Height</label>
-                    <input
-                        type="number"
-                        id="Height"
-                        className="form-control"
-                        placeholder="e.g., In CM"
-                        value={treeData.Height}
-                        onChange={(e) => setTreeData({ ...treeData, Height: e.target.value })}
-                        required
-                    />
-                </div>
-            </div>
-
-            <div className="form-row">
-                
-                <div className="form-group">
-                    <label htmlFor="location">Location Description</label>
-                    <input
-                        type="text"
-                        id="location"
-                        className="form-control"
-                        placeholder="e.g., Backyard, Community Garden, 123 Main St"
-                        value={treeData.location}
-                        onChange={(e) => setTreeData({ ...treeData, location: e.target.value })}
-                        required
-                    />
-                </div>
-            </div>
-
-            <div className="form-group">
-                <label>Tree Photos (Upload up to 5)</label>
-                <label className="file-upload">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                            const files = e.target.files;
-                            if (!files || files.length === 0) return;
-
-                            const updatedPhotos = Array.from(files).slice(0, 5);
-                            const fileReaders = [];
-                            const base64Images = [];
-
-                            updatedPhotos.forEach((file) => {
-                                const reader = new FileReader();
-                                fileReaders.push(reader);
-
-                                reader.onload = (event) => {
-                                    base64Images.push(event.target.result);
-                                    if (base64Images.length === updatedPhotos.length) {
-                                        setTreeData((prev) => ({
-                                            ...prev,
-                                            photos: [...(prev.photos || []), ...base64Images].slice(0, 5),
-                                        }));
-                                    }
-                                };
-
-                                reader.readAsDataURL(file);
-                            });
-                        }}
-                        disabled={(treeData.photos || []).length >= 5}
-                    />
-                    <svg className="file-upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <div className="file-upload-text">
-                        <strong>Click to upload photos</strong>
-                        <p>Install GPS MAP CAMERA and upload the picture</p>
-                        <p>PER IMAGE LIMIT 1 Mb</p>
-                        <p>{(treeData.photos || []).length}/5 photos uploaded</p>
-                    </div>
-                </label>
-                {(treeData.photos || []).length > 0 && (
-                    <div className="photo-preview">
-                        {treeData.photos.map((photo, index) => (
-                            <div key={index} className="photo-item">
-                                <img src={photo} alt={`Tree photo ${index + 1}`} />
-                                <button
-                                    type="button"
-                                    className="remove-photo"
-                                    onClick={() => removePhoto(index)}
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            <div className="form-actions">
-                <button type="button" className="btn-primary btn-cancel" onClick={() => setActiveTreePopup(false)}>Cancel</button>
-                <button type="submit" className="btn-primary btn-submit-tree">Save Details</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-
 
             {/* Solar Panel Popup */}
             <div className={`popup-overlay ${activeSolarPopup ? 'active' : ''}`} onClick={() => setActiveSolarPopup(false)}>
@@ -705,24 +518,24 @@ function dataURLtoBlob(dataURL) {
                     <form onSubmit={handleSolarSubmit}>
                         <div className="form-row">
                             <div className="form-group">
-                                <label htmlFor="Installed_Capacity">Installed Capacity</label>
+                                <label htmlFor="Installed_Capacity">Installed Capacity (kW)</label>
                                 <input
-                                    type="text"
+                                    type="number"
                                     id="Installed_Capacity"
                                     className="form-control"
-                                    placeholder="e.g., 3kw"
+                                    placeholder="e.g., 5"
+                                    step="0.1"
                                     value={solarPanelData.Installed_Capacity}
                                     onChange={(e) => setSolarPanelData({ ...solarPanelData, Installed_Capacity: e.target.value })}
                                     required
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="Installation_Date">Installation_Date</label>
+                                <label htmlFor="Installation_Date">Installation Date</label>
                                 <input
                                     type="date"
                                     id="Installation_Date"
                                     className="form-control"
-                                    placeholder="e.g., 3kw"
                                     value={solarPanelData.Installation_Date}
                                     onChange={(e) => setSolarPanelData({ ...solarPanelData, Installation_Date: e.target.value })}
                                     required
@@ -732,42 +545,36 @@ function dataURLtoBlob(dataURL) {
 
                         <div className="form-row">
                             <div className="form-group">
-                                <label htmlFor="Energy_Generation_Value">Energy Generation Value</label>
+                                <label htmlFor="Energy_Generation_Value">Energy Generated (kWh)</label>
                                 <input
                                     type="number"
                                     id="Energy_Generation_Value"
                                     className="form-control"
-                                    placeholder="e.g., 3kw"
+                                    placeholder="e.g., 150"
+                                    step="0.1"
                                     value={solarPanelData.Energy_Generation_Value}
-                                    onChange={(e) =>
-                                        setSolarPanelData({
-                                            ...solarPanelData,
-                                            Energy_Generation_Value: e.target.value
-                                        })
-                                    }
+                                    onChange={(e) => setSolarPanelData({ ...solarPanelData, Energy_Generation_Value: e.target.value })}
                                     required
                                 />
                             </div>
-
-
-                        </div>
-                        <div className="form-row">
-
                             <div className="form-group">
-                                <label htmlFor="Grid_Emission_Factor">Grid_Emission_Factor</label>
+                                <label htmlFor="Grid_Emission_Factor">Grid Emission Factor</label>
                                 <input
                                     type="number"
                                     id="Grid_Emission_Factor"
                                     className="form-control"
-                                    placeholder="e.g., 30"
+                                    placeholder="e.g., 0.7"
+                                    step="0.1"
                                     value={solarPanelData.Grid_Emission_Factor}
                                     onChange={(e) => setSolarPanelData({ ...solarPanelData, Grid_Emission_Factor: e.target.value })}
                                     required
                                 />
                             </div>
+                        </div>
 
+                        <div className="form-row">
                             <div className="form-group">
-                                <label htmlFor="Inverter_Type">Inverter_Type</label>
+                                <label htmlFor="Inverter_Type">Inverter Type</label>
                                 <select
                                     id="Inverter_Type"
                                     className="form-control"
@@ -775,9 +582,7 @@ function dataURLtoBlob(dataURL) {
                                     onChange={(e) => setSolarPanelData({ ...solarPanelData, Inverter_Type: e.target.value })}
                                     required
                                 >
-                                    <option value="" disabled hidden>
-            -- Select Inverter Type --
-        </option>
+                                    <option value="" disabled hidden>-- Select Inverter Type --</option>
                                     <option value="string">String Inverter</option>
                                     <option value="microinverter">Microinverter</option>
                                     <option value="hybrid">Hybrid Inverter</option>
@@ -785,13 +590,7 @@ function dataURLtoBlob(dataURL) {
                                 </select>
                             </div>
                         </div>
-                        <div className="form-row">
 
-                        </div>
-                        <div className="form-row">
-
-
-                        </div>
                         <div className="form-actions">
                             <button type="button" className="btn-primary btn-cancel" onClick={() => setActiveSolarPopup(false)}>Cancel</button>
                             <button type="submit" className="btn-primary btn-submit">Save Details</button>
@@ -800,10 +599,131 @@ function dataURLtoBlob(dataURL) {
                 </div>
             </div>
 
+            {/* Tree Popup */}
+            <div className={`popup-overlay ${activeTreePopup ? 'active' : ''}`} onClick={() => setActiveTreePopup(false)}>
+                <div className={`popup ${activeTreePopup ? 'active' : ''}`} onClick={e => e.stopPropagation()}>
+                    <div className="popup-header">
+                        <h2>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF9800" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 14l-5-5-5 5"></path>
+                                <path d="M12 9v12"></path>
+                                <path d="M12 3a5 5 0 0 1 5 5c0 2-3 3-5 3s-5-1-5-3a5 5 0 0 1 5-5z"></path>
+                            </svg>
+                            Tree Planting Details
+                        </h2>
+                        <button className="popup-close" onClick={() => setActiveTreePopup(false)}>×</button>
+                    </div>
+                    <form onSubmit={handleTreeSubmit}>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="TreeName">Tree Name</label>
+                                <input
+                                    type="text"
+                                    id="TreeName"
+                                    className="form-control"
+                                    placeholder="e.g., Mango, Pine, Neem"
+                                    value={treeData.TreeName}
+                                    onChange={(e) => setTreeData({ ...treeData, TreeName: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="BotanicalName">Botanical Name</label>
+                                <input
+                                    type="text"
+                                    id="BotanicalName"
+                                    className="form-control"
+                                    placeholder="e.g., Mangifera indica"
+                                    value={treeData.BotanicalName}
+                                    onChange={(e) => setTreeData({ ...treeData, BotanicalName: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
 
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="PlantingDate">Planting Date</label>
+                                <input
+                                    type="date"
+                                    id="PlantingDate"
+                                    className="form-control"
+                                    value={treeData.PlantingDate}
+                                    onChange={(e) => setTreeData({ ...treeData, PlantingDate: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="Height">Height (cm)</label>
+                                <input
+                                    type="number"
+                                    id="Height"
+                                    className="form-control"
+                                    placeholder="e.g., 250"
+                                    value={treeData.Height}
+                                    onChange={(e) => setTreeData({ ...treeData, Height: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="location">Location</label>
+                                <input
+                                    type="text"
+                                    id="location"
+                                    className="form-control"
+                                    placeholder="e.g., Backyard, Community Garden"
+                                    value={treeData.location}
+                                    onChange={(e) => setTreeData({ ...treeData, location: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Tree Photos (Optional, up to 5)</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                    const files = Array.from(e.target.files).slice(0, 5);
+                                    const readers = files.map(file => {
+                                        return new Promise((resolve) => {
+                                            const reader = new FileReader();
+                                            reader.onload = (event) => resolve(event.target.result);
+                                            reader.readAsDataURL(file);
+                                        });
+                                    });
+                                    Promise.all(readers).then(photos => {
+                                        setTreeData(prev => ({ ...prev, photos }));
+                                    });
+                                }}
+                            />
+                            {treeData.photos.length > 0 && (
+                                <div className="photo-preview">
+                                    {treeData.photos.map((photo, index) => (
+                                        <div key={index} className="photo-item">
+                                            <img src={photo} alt={`Tree ${index + 1}`} />
+                                            <button type="button" onClick={() => removePhoto(index)}>×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="form-actions">
+                            <button type="button" className="btn-primary btn-cancel" onClick={() => setActiveTreePopup(false)}>Cancel</button>
+                            <button type="submit" className="btn-primary btn-submit-tree">Save Details</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             {/* Toast Notification */}
-            <div className={`toast ${toast.show ? 'show' : ''}`}>
+            <div className={`toast ${toast.show ? 'show' : ''} ${toast.type}`}>
                 <svg className="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -813,4 +733,5 @@ function dataURLtoBlob(dataURL) {
         </div>
     );
 };
+
 export default PopupForms;
