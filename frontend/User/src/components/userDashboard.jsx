@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from "react";
-import { FaLeaf, FaCar, FaSun } from "react-icons/fa";
-import { GiRank3 } from "react-icons/gi";
-import { MdOutlineAttachMoney } from "react-icons/md";
+import { 
+  FaLeaf, 
+  FaCar, 
+  FaSun, 
+  FaIndustry, 
+  FaCalendarAlt, 
+  FaBolt, 
+  FaTachometerAlt, 
+  FaTree, 
+  FaMapMarkerAlt, 
+  FaRuler, 
+  FaSolarPanel, 
+  FaMicrochip 
+} from "react-icons/fa";
+import { GiRank3, GiTreeBranch } from "react-icons/gi";
+import { MdOutlineAttachMoney, MdCategory, MdScience } from "react-icons/md";
+import { BsLightningChargeFill } from "react-icons/bs";
+import { IoMdFlash } from "react-icons/io";
 import { Eye } from "lucide-react";
 import Navbar from "./userNavbar";
-// import Card from "./Card";
-// import Panel from "./Panel";
-// import InfoBlock from "./InfoBlock";
 import ActivityItem from "./ActivityItem";
-// import VehicleItem from "./VehicleItem";
-// import RecentItem from "./RecentItem";
-import Footer from  "./Footer";
+import Footer from "./Footer";
 import '../styles/userDashboard.css';
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import Wallet from "../pages/wallet";
-
+import evService from "../services/evService";
+import solarService from "../services/solarService";
+import treeService from "../services/treeService";
+import { toast } from "react-toastify";
 import Cardsection from "./cardsection";
 
 const UserDashboard = () => {
@@ -26,43 +37,133 @@ const UserDashboard = () => {
   const [percentChange, setPercentChange] = useState(0);
   const [backendCredits, setBackendCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
-
   const [credit, setCredit] = useState(0);
-  const userId = localStorage.getItem("userId");
+  const [activityList, setActivityList] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [openIndex, setOpenIndex] = useState(null);
 
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const userId = storedUser?.u_id || localStorage.getItem("userId") || 'USR_SAMPLE_001';
 
   useEffect(() => {
-    const fetchAssets = async () => {
-      try {
-        const userId = localStorage.getItem("userId");
-        console.log("Fetched userId:", userId);
-
-        // Fetch EVs
-        const evRes = await axios.get(`https://add-asset-service.onrender.com/api/evmasterdata/${userId}`);
-        console.log("EV API response:", evRes.data);
-        setEvList(evRes.data.data);
-
-        // Fetch Solar
-        const solarRes = await axios.get(`https://add-asset-service.onrender.com/api/solarpanel/${userId}`);
-        console.log("Solar API response:", solarRes.data);
-        setSolarList(solarRes.data.data);
-
-        // ✅ Fetch Trees
-        const treeRes = await axios.get(`https://add-asset-service.onrender.com/api/tree/${userId}`);
-        console.log("Tree API response:", treeRes.data);
-        setTreeList(treeRes.data.data);
-
-      } catch (error) {
-        console.error("Error fetching assets:", error);
-      }
-    };
-
     fetchAssets();
-  }, []);
+  }, [userId]);
 
+  const fetchAssets = async () => {
+    try {
+      setLoadingActivity(true);
+      console.log("Fetching assets for userId:", userId);
 
+      // Fetch all assets in parallel
+      const [evData, solarData, treeData] = await Promise.all([
+        evService.getAllEVs(userId).catch((err) => {
+          console.error("EV fetch error:", err);
+          return { data: [] };
+        }),
+        solarService.getAllSolarPanels(userId).catch((err) => {
+          console.error("Solar fetch error:", err);
+          return { data: [] };
+        }),
+        treeService.getAllTrees(userId).catch((err) => {
+          console.error("Tree fetch error:", err);
+          return { data: [] };
+        }),
+      ]);
 
+      console.log("✅ EV Data:", evData);
+      console.log("✅ Solar Data:", solarData);
+      console.log("✅ Tree Data:", treeData);
 
+      const evs = evData.data || [];
+      const solars = solarData.data || [];
+      const trees = treeData.data || [];
+
+      setEvList(evs);
+      setSolarList(solars);
+      setTreeList(trees);
+
+      // Build activity list
+      buildActivityList(evs, solars, trees);
+    } catch (error) {
+      console.error("❌ Error fetching assets:", error);
+      toast.error("Failed to load assets");
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
+  const buildActivityList = (evs, solars, trees) => {
+    // Debug log to see actual field names
+    if (evs.length > 0) {
+      console.log('🔍 EV Fields:', Object.keys(evs[0]));
+      console.log('🔍 Sample EV:', evs[0]);
+    }
+    if (solars.length > 0) {
+      console.log('🔍 Solar Fields:', Object.keys(solars[0]));
+      console.log('🔍 Sample Solar:', solars[0]);
+    }
+    if (trees.length > 0) {
+      console.log('🔍 Tree Fields:', Object.keys(trees[0]));
+      console.log('🔍 Sample Tree:', trees[0]);
+    }
+
+    // Map EV activities with fallbacks for both snake_case and PascalCase
+    const evActivities = evs.map(item => ({
+      type: "EV",
+      detail: item.manufacturers || item.Manufacturers || "Unknown",
+      model: item.model || item.Model || "N/A",
+      category: item.category || item.Category || "N/A",
+      year: item.purchase_year || item.Purchase_Year || "N/A",
+      range: item.range ? `${item.range} km` : "N/A",
+      topSpeed: item.top_speed || item.Top_Speed ? `${item.top_speed || item.Top_Speed} km/h` : "N/A",
+      energy: item.energy_consumed || item.Energy_Consumed ? `${item.energy_consumed || item.Energy_Consumed} kWh` : "N/A",
+      time: new Date(item.created_at || item.Created_At).toLocaleString() || "Just now",
+      credits: "+50",
+    }));
+
+    // Map Solar activities with fallbacks
+    const solarActivities = solars.map(item => ({
+      type: "Solar",
+      detail: item.inverter_type || item.Inverter_Type || "Unknown Inverter",
+      year: item.installation_year || item.Installation_Year || "N/A",
+      generation: item.energy_generated_kwh || item.Energy_Generated_kWh 
+        ? `${item.energy_generated_kwh || item.Energy_Generated_kWh} kWh` 
+        : "N/A",
+      capacity: item.capacity_kw || item.Capacity_kW 
+        ? `${item.capacity_kw || item.Capacity_kW} kW` 
+        : "N/A",
+      panelType: item.panel_type || item.Panel_Type || "N/A",
+      time: new Date(item.created_at || item.Created_At).toLocaleString() || "Just now",
+      credits: "+50",
+    }));
+
+    // Map Tree activities with fallbacks
+    const treeActivities = trees.map(item => ({
+      type: "Tree",
+      treename: item.common_name || item.Common_Name || "Unknown Tree",
+      scientificname: item.scientific_name || item.Scientific_Name || "N/A",
+      plantingdate: item.planting_year || item.Planting_Year || "N/A",
+      location: item.location || item.Location || "N/A",
+      height: item.height_m || item.Height_m ? `${item.height_m || item.Height_m}m` : "N/A",
+      dbh: item.diameter_cm || item.Diameter_cm ? `${item.diameter_cm || item.Diameter_cm}cm` : "N/A",
+      treeType: item.tree_type || item.Tree_Type || "N/A",
+      time: new Date(item.created_at || item.Created_At).toLocaleString() || "Just now",
+      credits: "+50",
+    }));
+
+    // Combine and reverse to show newest first
+    const allActivities = [...evActivities, ...solarActivities, ...treeActivities];
+    
+    // Sort by time (newest first)
+    allActivities.sort((a, b) => {
+      const timeA = new Date(a.time);
+      const timeB = new Date(b.time);
+      return timeB - timeA;
+    });
+
+    setActivityList(allActivities);
+    console.log('📋 Activity List:', allActivities);
+  };
 
   useEffect(() => {
     history.pushState(null, null, window.location.href);
@@ -76,97 +177,15 @@ const UserDashboard = () => {
 
   const handleQuickAdd = () => {
     navigate("/upload");
-    updatePrevCredits(); // ✅ Yahan update karo jab user manually add kare
   };
-
 
   const handleViewAssets = () => {
     navigate("/view-assets");
   };
 
-  const [openIndex, setOpenIndex] = useState(null);
   const toggleFAQ = (index) => {
     setOpenIndex(openIndex === index ? null : index);
   };
-
-  // Recent Activity logic
-  const [activityList, setActivityList] = useState([]);
-  const [loadingActivity, setLoadingActivity] = useState(true);
-
-  useEffect(() => {
-    const fetchRecentActivity = async () => {
-      try {
-        const storedUser = JSON.parse(localStorage.getItem("user"));
-        const userId = storedUser?.u_id;
-
-        if (!userId) {
-          console.error("User ID not found in localStorage");
-          setLoadingActivity(false);
-          return;
-        }
-
-        // Fetch EV data
-        const evRes = await fetch(`https://add-asset-service.onrender.com/api/evmasterdata/${userId}`);
-        const evData = await evRes.json();
-        const evActivities = (evData.status === "success" && evData.data.length > 0)
-          ? evData.data.map(item => ({
-            type: "EV",
-            detail: item.manufacturers,
-            year: item.purchase_year || "N/A",
-            range: item.range ? `${item.range} km` : "N/A",
-            topSpeed: item.top_speed ? `${item.top_speed} km/h` : "N/A",
-            time: "Just now",
-            credits: "+50",
-          }))
-          : [];
-
-        // Fetch Solar data
-        const solarRes = await fetch(`https://add-asset-service.onrender.com/api/solarpanel/${userId}`);
-        const solarData = await solarRes.json();
-        const solarActivities = (solarData.status === "success" && solarData.data.length > 0)
-          ? solarData.data.map(item => ({
-            type: "Solar",
-            detail: item.inverter_type || "Unknown Inverter",
-            year: item.installation_date ? item.installation_date.slice(0, 10) : "N/A",
-            generation: item.energy_generation_value ? `${item.energy_generation_value} kWh` : "N/A",
-            time: "Just now",
-            credits: "+50",
-          }))
-          : [];
-
-        // ✅ Fetch Tree data
-        const treeRes = await fetch(`https://add-asset-service.onrender.com/api/tree/${userId}`);
-        const treeData = await treeRes.json();
-        const treeActivities = (treeData.status === "success" && treeData.data.length > 0)
-          ? treeData.data.map(item => ({
-            type: "Tree",
-            treename: item.treename || "Unknown Tree",
-            plantingdate: item.plantingdate ? new Date(item.plantingdate).toLocaleDateString() : "N/A",
-            location: item.location || "N/A",
-            height: item.height ? item.height : "N/A",
-            dbh: item.dbh ? item.dbh : "N/A",
-            time: "Just now",
-            credits: "+50",
-          }))
-          : [];
-
-        // Merge all activities
-        const allActivities = [...evActivities, ...solarActivities, ...treeActivities];
-
-        // ✅ Sort by time or add latest first if needed
-        setActivityList(allActivities.reverse());
-
-      } catch (error) {
-        console.error("Failed to fetch recent activity:", error);
-        setActivityList([]);
-      } finally {
-        setLoadingActivity(false);
-      }
-    };
-
-    fetchRecentActivity();
-  }, []);
-
 
   useEffect(() => {
     const sum = activityList.reduce((acc, item) => {
@@ -175,28 +194,6 @@ const UserDashboard = () => {
     }, 0);
     setTotalCredits(sum);
   }, [activityList]);
-
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const initCredit = async () => {
-      await fetch("https://add-asset-service.onrender.com/api/credits/init", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: userId }),
-      });
-    };
-
-    const fetchCredit = async () => {
-      const res = await fetch(`https://add-asset-service.onrender.com/api/credits/${userId}`);
-      const data = await res.json();
-      setCredit(data.token_value || 0);
-    };
-
-    initCredit().then(fetchCredit);
-  }, [userId]);
-
 
   useEffect(() => {
     if (backendCredits === 0) {
@@ -209,33 +206,6 @@ const UserDashboard = () => {
     }
   }, [totalCredits, backendCredits]);
 
-  useEffect(() => {
-    if (activityList.length > 0) {
-      updateCreditsOnBackend();
-    }
-  }, [activityList]);
-
-  const updateCreditsOnBackend = async () => {
-    try {
-      const uid = localStorage.getItem("userId"); // 👈 Replace this with actual UID
-
-      const res = await fetch("https://add-asset-service.onrender.com/api/credits/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, token_value: totalCredits }),
-      });
-
-      const data = await res.json();
-      console.log("Credits updated on backend:", data);
-
-      // Backend se latest value fetch karo wapas
-      const res2 = await fetch(`https://add-asset-service.onrender.com/api/credits/${uid}`);
-      const newData = await res2.json();
-      setBackendCredits(newData.token_value || 0);
-    } catch (error) {
-      console.error("Error updating backend credits:", error);
-    }
-  };
   const getPercentChangeText = () => {
     if (percentChange === 0) {
       return "No change in credits 🤝";
@@ -246,17 +216,18 @@ const UserDashboard = () => {
     }
   };
 
-
+  // CO2 Calculations
   const treeCO2 = treeList.length * 21; // in kg
   const evCO2 = evList.reduce((total, ev) => {
-    const km = parseFloat(ev.range) || 0;
+    const km = parseFloat(ev.range || ev.Range) || 0;
     return total + km * 0.12; // 0.12 kg per km
   }, 0);
 
   const solarCO2 = solarList.reduce((total, solar) => {
-    const kwh = parseFloat(solar.energy_generation_value) || 0;
+    const kwh = parseFloat(solar.energy_generated_kwh || solar.Energy_Generated_kWh) || 0;
     return total + kwh * 0.7; // 0.7 kg per kWh
   }, 0);
+
   const totalCO2 = treeCO2 + evCO2 + solarCO2; // in kg
   const totalCO2Tons = (totalCO2 / 1000).toFixed(1); // convert to tons
 
@@ -265,7 +236,6 @@ const UserDashboard = () => {
 
   useEffect(() => {
     if (prevCO2 === 0) {
-      // First time
       setPrevCO2(totalCO2);
       setPercentCO2Change(0);
     } else if (totalCO2 !== prevCO2) {
@@ -275,11 +245,11 @@ const UserDashboard = () => {
     }
   }, [totalCO2]);
 
-
   const co2ChangeText = percentCO2Change >= 0
     ? `+${percentCO2Change.toFixed(1)}% 🌿 Higher offset!`
     : `${percentCO2Change.toFixed(1)}% 🌎 Lower offset`;
 
+  // Value Calculations
   const co2FromEVs = evList.length * 1;          // tons
   const co2FromSolar = solarList.length * 0.5;   // tons
   const co2FromTrees = treeList.length * 0.02;   // tons
@@ -307,38 +277,17 @@ const UserDashboard = () => {
   const valueChangeText = percentValueChange >= 0
     ? `+${percentValueChange.toFixed(1)}% 🌿 Impact`
     : `${percentValueChange.toFixed(1)}% 🌿 Impact`;
-  const totalUsers = 10000; // assume total global users
-  const maxPossibleCredits = 5000; // max credits anyone can have (example)
 
+  // Ranking
+  const totalUsers = 10000;
+  const maxPossibleCredits = 5000;
   const userRankPercent = 100 - ((totalCredits / maxPossibleCredits) * 100);
-  const displayRankPercent = userRankPercent < 1 ? 1 : userRankPercent.toFixed(1); // avoid going below top 1%
-
+  const displayRankPercent = userRankPercent < 1 ? 1 : userRankPercent.toFixed(1);
   const rankNumber = Math.floor((userRankPercent / 100) * totalUsers);
   const rankText = `Top ${displayRankPercent}% globally`;
   const rankValue = `#${rankNumber}`;
 
-
-
-  const totalDistance = evList.reduce((sum, ev) => sum + (ev.distance || 0), 0);
-  const co2Saved = totalDistance * 0.228;
-  const evCredits = Math.floor(totalDistance / 10); // e.g., 1 credit per 10 km
-  const firstEV = evList[0];
-  const firstDistance = firstEV?.distance || 0;
-
-  const totalTreesPlanted = treeList.length;
-  const co2Absorbed = totalTreesPlanted * 21; // average kg/year per tree
-  const treeCredits = totalTreesPlanted * 5;
-  const recentTree = treeList[treeList.length - 1];
-
-
-  const totalEnergyGenerated = solarList.reduce(
-    (sum, item) => sum + (item.energy_generation_value || 0),
-    0
-  );
-  const billSaved = totalEnergyGenerated * 6;
-  const solarCredits = Math.round(totalEnergyGenerated * 0.2);
-
-
+  // FAQ Data
   const faqData = [
     {
       question: "How to earn credits?",
@@ -370,7 +319,6 @@ const UserDashboard = () => {
                 className="view-asset flex items-center gap-2"
                 onClick={handleViewAssets}
               >
-                
                 View Assets
               </button>
 
@@ -381,49 +329,133 @@ const UserDashboard = () => {
           </div>
         </div>
 
-        {/* Overview Cards */}
-       
         {/* Main Panels */}
-        <Cardsection/>
+        <Cardsection />
 
         {/* Recent Activity */}
         <div className="recent-section">
           <h2>Recent Activity</h2>
           <div className="activity-list">
             {loadingActivity ? (
-              <div>Loading recent activity...</div>
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Loading recent activity...</p>
+              </div>
             ) : activityList.length > 0 ? (
               activityList.map((item, idx) => {
-                let detailText = "";
+                let detailText = null;
                 let titleText = "";
+                let titleIcon = null;
 
                 if (item.type === "EV") {
-                  detailText = `🏭 ${item.detail} | 📅 ${item.year} | ⚡ ${item.range} | 🏎️ ${item.topSpeed}`;
-                  titleText = "🚗 New vehicle added!";
+                  titleIcon = <FaCar className="activity-title-icon" style={{ color: '#2196F3' }} />;
+                  titleText = "New vehicle added!";
+                  detailText = (
+                    <div className="activity-detail-row">
+                      <span className="activity-detail-item">
+                        <FaIndustry className="detail-icon" />
+                        {item.detail} {item.model}
+                      </span>
+                      <span className="activity-detail-item">
+                        <MdCategory className="detail-icon" />
+                        {item.category}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaCalendarAlt className="detail-icon" />
+                        {item.year}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaBolt className="detail-icon" />
+                        {item.range}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaTachometerAlt className="detail-icon" />
+                        {item.topSpeed}
+                      </span>
+                    </div>
+                  );
                 } else if (item.type === "Solar") {
-                  detailText = `⚡ ${item.detail} | 📅 ${item.year} | 🌞 ${item.generation}`;
-                  titleText = "☀️ New solar asset added!";
+                  titleIcon = <FaSun className="activity-title-icon" style={{ color: '#FF9800' }} />;
+                  titleText = "New solar asset added!";
+                  detailText = (
+                    <div className="activity-detail-row">
+                      <span className="activity-detail-item">
+                        <FaMicrochip className="detail-icon" />
+                        {item.detail}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaSolarPanel className="detail-icon" />
+                        {item.panelType}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaCalendarAlt className="detail-icon" />
+                        {item.year}
+                      </span>
+                      <span className="activity-detail-item">
+                        <BsLightningChargeFill className="detail-icon" />
+                        {item.generation}
+                      </span>
+                      <span className="activity-detail-item">
+                        <IoMdFlash className="detail-icon" />
+                        {item.capacity}
+                      </span>
+                    </div>
+                  );
                 } else if (item.type === "Tree") {
-                  detailText = `🌳 ${item.treename} | 🗓️ ${item.plantingdate} | 📍 ${item.location} | 📏 ${item.height}m`;
-                  titleText = "🌳 New tree planted!";
+                  titleIcon = <FaTree className="activity-title-icon" style={{ color: '#4CAF50' }} />;
+                  titleText = "New tree planted!";
+                  detailText = (
+                    <div className="activity-detail-row">
+                      <span className="activity-detail-item">
+                        <GiTreeBranch className="detail-icon" />
+                        {item.treename}
+                      </span>
+                      <span className="activity-detail-item">
+                        <MdScience className="detail-icon" />
+                        {item.scientificname}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaLeaf className="detail-icon" />
+                        {item.treeType}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaCalendarAlt className="detail-icon" />
+                        {item.plantingdate}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaMapMarkerAlt className="detail-icon" />
+                        {item.location}
+                      </span>
+                      <span className="activity-detail-item">
+                        <FaRuler className="detail-icon" />
+                        {item.height}
+                      </span>
+                    </div>
+                  );
                 }
 
                 return (
                   <ActivityItem
                     key={idx}
+                    titleIcon={titleIcon}
                     title={titleText}
                     detail={detailText}
                     time={item.time}
-
+                    credits={item.credits}
                   />
                 );
               })
             ) : (
-              <div>No recent activity</div>
+              <div className="empty-state">
+                <p>No recent activity</p>
+                <p>Start adding your eco-friendly assets to track your impact!</p>
+                <button className="quick-add-small" onClick={handleQuickAdd}>
+                  + Add Your First Asset
+                </button>
+              </div>
             )}
           </div>
         </div>
-
 
         {/* FAQ Section */}
         <div className="faq-section">
@@ -435,7 +467,10 @@ const UserDashboard = () => {
                 className={`faq-item ${openIndex === index ? "open" : ""}`}
                 onClick={() => toggleFAQ(index)}
               >
-                <div className="faq-question">{item.question}</div>
+                <div className="faq-question">
+                  {item.question}
+                  <span className="faq-icon">{openIndex === index ? "−" : "+"}</span>
+                </div>
                 <div
                   className="faq-answer"
                   style={{
@@ -448,12 +483,10 @@ const UserDashboard = () => {
               </div>
             ))}
           </div>
-          <Footer />
         </div>
-
-        {/* <Footer /> */}
+        
+        <Footer />
       </div>
-      
     </div>
   );
 };

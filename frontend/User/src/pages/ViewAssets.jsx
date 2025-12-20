@@ -1,12 +1,14 @@
-
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import { evService, solarService, treeService, assetService, transactionService } from "../services";
 import "../styles/ViewAssets.css";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { GiTreeGrowth } from "react-icons/gi";
+import { PiSolarPanelLight } from "react-icons/pi";
+import { MdElectricBolt } from "react-icons/md";
 
-const SustainableAssets = () => {
+const ViewAssets = () => {
   const [evList, setEvList] = useState([]);
   const [solarList, setSolarList] = useState([]);
   const [treeList, setTreeList] = useState([]);
@@ -16,71 +18,69 @@ const SustainableAssets = () => {
   const [initialFormData, setInitialFormData] = useState({});
   const [evTransactionList, setEvTransactionList] = useState([]);
   const [assetStatuses, setAssetStatuses] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const storedUser = JSON.parse(localStorage.getItem("user"));
-  const userId = storedUser?.u_id;
+  const userId = storedUser?.u_id || import.meta.env.VITE_DEFAULT_USER_ID;
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "approved":
-        return "green";
+        return "#10b981";
       case "rejected":
-        return "red";
+        return "#ef4444";
       case "pending":
       default:
-        return "yellow";
+        return "#fbbc05";
     }
   };
 
-  useEffect(() => {
-    const fetchAssetStatuses = async () => {
-      try {
-        const res = await fetch(`https://add-asset-service.onrender.com/api/assets/user/${userId}/status`);
-        const data = await res.json();
-        setAssetStatuses(data);
-      } catch (error) {
-        console.error("Failed to fetch asset statuses:", error);
-      }
-    };
+  const getStatusText = (status) => {
+    if (!status) return "Pending";
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
 
-    if (userId) fetchAssetStatuses();
+  useEffect(() => {
+    fetchAllData();
   }, [userId]);
 
-  const fetchData = async () => {
+  const fetchAllData = async () => {
     try {
-      const evRes = await axios.get(`https://add-asset-service.onrender.com/api/evmasterdata/${userId}`);
-      setEvList(evRes.data.data);
+      setLoading(true);
+      
+      const [evData, solarData, treeData, statusData] = await Promise.all([
+        evService.getAllEVs(userId).catch(() => ({ data: [] })),
+        solarService.getAllSolarPanels(userId).catch(() => ({ data: [] })),
+        treeService.getAllTrees(userId).catch(() => ({ data: [] })),
+        assetService.getAllAssetStatuses(userId).catch(() => ({})),
+      ]);
 
-      const solarRes = await axios.get(`https://add-asset-service.onrender.com/api/solarpanel/${userId}`);
-      setSolarList(solarRes.data.data);
+      console.log("✅ EV Data:", evData);
+      console.log("✅ Solar Data:", solarData);
+      console.log("✅ Tree Data:", treeData);
 
-      const treeRes = await axios.get(`https://add-asset-service.onrender.com/api/tree/${userId}`);
-      setTreeList(treeRes.data.data);
+      setEvList(evData.data || []);
+      setSolarList(solarData.data || []);
+      setTreeList(treeData.data || []);
+      setAssetStatuses(statusData || {});
     } catch (error) {
-      console.error("Error fetching assets:", error);
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load assets");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const getStatus = (id) => assetStatuses[id] || "Pending";
-
-  const renderStatus = (id) => (
-    <div className="asset-card-status">
-      <span className={`asset-dot ${getStatusColor(getStatus(id))}`}></span>
-      {getStatus(id).charAt(0).toUpperCase() + getStatus(id).slice(1)}
-    </div>
-  );
-
   const openModal = async (type, asset, assetType) => {
+    console.log("📋 Opening modal with asset:", asset);
     setFormData(asset);
     setInitialFormData(asset);
     setIsEditing(false);
+    
     if (assetType === "EV" && type === "View Details") {
-      await handleViewDetails(asset.ev_id);
+      await fetchEVTransactions(asset.ev_id || asset.EV_ID);
     }
+    
     setModalContent({ type, asset, assetType });
   };
 
@@ -90,17 +90,20 @@ const SustainableAssets = () => {
     setEvTransactionList([]);
   };
 
-  const handleViewDetails = async (evId) => {
+  const fetchEVTransactions = async (evId) => {
     try {
-     const res = await axios.get(`https://add-asset-service.onrender.com/api/by-ev/${evId}`);
-      console.log("Fetched transactions:", res.data); 
-      const transactions = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
-      setEvTransactionList(res.data);
+      const response = await transactionService.getAllTransactions(userId);
+      const evTransactions = response.data.filter(t => 
+        (t.Asset_ID === evId || t.asset_id === evId) && 
+        (t.Asset_Type === 'ev' || t.asset_type === 'ev')
+      );
+      setEvTransactionList(evTransactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       setEvTransactionList([]);
     }
   };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
@@ -108,144 +111,162 @@ const SustainableAssets = () => {
       [name]: value,
     }));
   };
-const handleSaveSolar = async () => {
-  try {
-    const originalData = initialFormData;
-    const newData = formData;
 
-    const keyMap = {
-      installed_capacity: 'Installed_Capacity',
-      installation_date: 'Installation_Date',
-      energy_generation_value: 'Energy_Generation_Value',
-      inverter_type: 'Inverter_Type'
-    };
-
-    const updatedFields = {};
-    Object.keys(newData).forEach((key) => {
-      const mappedKey = keyMap[key];
-      if (mappedKey && newData[key] !== originalData[key]) {
-        updatedFields[mappedKey] = newData[key];
-      }
-    });
-
-    if (Object.keys(updatedFields).length === 0) {
-      alert("No changes to update!");
-      return;
-    }
-
-    await axios.put(
-      `https://add-asset-service.onrender.com/api/solarpanel/${formData.suid}`,
-      updatedFields
-    );
-
-    toast.success("Solar panel updated successfully!");
-
-    const newFormData = {
-      ...formData,
-      ...Object.fromEntries(
-        Object.entries(updatedFields).map(([backendKey, value]) => {
-          const frontendKey = Object.keys(keyMap).find((k) => keyMap[k] === backendKey);
-          return [frontendKey, value];
-        })
-      )
-    };
-
-    setFormData(newFormData);
-    setInitialFormData(newFormData);
-
-    setSolarList((prevList) =>
-      prevList.map((item) =>
-        item.suid === formData.suid ? { ...item, ...newFormData } : item
-      )
-    );
-
-    setIsEditing(false);
-  } catch (error) {
-    console.error("Error updating Solar Panel:", error);
-    alert("Failed to update Solar Panel!");
-  }
-};
-
-  const handleSave = async () => {
+  const handleSaveEV = async () => {
     try {
       const originalData = initialFormData;
       const newData = formData;
 
-      const keyMap = {
-        vuid: 'VUID',
-        u_id: 'U_ID',
-        category: 'Category',
-        manufacturers: 'Manufacturers',
-        model: 'Model',
-        purchase_year: 'Purchase_Year',
-        energy_consumed: 'Energy_Consumed',
-        primary_charging_type: 'Primary_Charging_Type',
-        range: 'Range',
-        grid_emission_factor: 'Grid_Emission_Factor',
-        top_speed: 'Top_Speed',
-        charging_time: 'Charging_Time',
-        motor_power: 'Motor_Power'
-      };
-
       const updatedFields = {};
-
       Object.keys(newData).forEach((key) => {
-        const mappedKey = keyMap[key];
-        if (mappedKey && newData[key] !== originalData[key]) {
-          updatedFields[mappedKey] = newData[key];
+        if (newData[key] !== originalData[key] && 
+            !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID"].includes(key)) {
+          updatedFields[key] = newData[key];
         }
       });
 
       if (Object.keys(updatedFields).length === 0) {
-        alert("No changes to update!");
+        toast.info("No changes to update!");
         return;
       }
 
-      await axios.put(
-        `https://add-asset-service.onrender.com/api/evmasterdata/${formData.ev_id}`,
-        updatedFields
-      );
-
+      const evId = formData.ev_id || formData.EV_ID;
+      await evService.updateEV(userId, evId, updatedFields);
       toast.success("EV updated successfully!");
 
-      const newFormData = {
-        ...formData,
-        ...Object.fromEntries(
-          Object.entries(updatedFields).map(([backendKey, value]) => {
-            const frontendKey = Object.keys(keyMap).find(
-              (k) => keyMap[k] === backendKey
-            );
-            return [frontendKey, value];
-          })
-        )
-      };
-
+      const newFormData = { ...formData, ...updatedFields };
       setFormData(newFormData);
       setInitialFormData(newFormData);
 
       setEvList((prevList) =>
         prevList.map((item) =>
-          item.ev_id === formData.ev_id ? { ...item, ...newFormData } : item
+          (item.ev_id || item.EV_ID) === evId ? { ...item, ...newFormData } : item
         )
       );
 
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating EV:", error);
-      alert("Failed to update EV!");
+      toast.error("Failed to update EV!");
     }
+  };
+
+  const handleSaveSolar = async () => {
+    try {
+      const originalData = initialFormData;
+      const newData = formData;
+
+      const updatedFields = {};
+      Object.keys(newData).forEach((key) => {
+        if (newData[key] !== originalData[key] && 
+            !["suid", "u_id", "SUID", "U_ID"].includes(key)) {
+          updatedFields[key] = newData[key];
+        }
+      });
+
+      if (Object.keys(updatedFields).length === 0) {
+        toast.info("No changes to update!");
+        return;
+      }
+
+      const solarId = formData.suid || formData.SUID;
+      await solarService.updateSolarPanel(userId, solarId, updatedFields);
+      toast.success("Solar panel updated successfully!");
+
+      const newFormData = { ...formData, ...updatedFields };
+      setFormData(newFormData);
+      setInitialFormData(newFormData);
+
+      setSolarList((prevList) =>
+        prevList.map((item) =>
+          (item.suid || item.SUID) === solarId ? { ...item, ...newFormData } : item
+        )
+      );
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating Solar Panel:", error);
+      toast.error("Failed to update Solar Panel!");
+    }
+  };
+
+  const handleSaveTree = async () => {
+    try {
+      const originalData = initialFormData;
+      const newData = formData;
+
+      const updatedFields = {};
+      Object.keys(newData).forEach((key) => {
+        if (newData[key] !== originalData[key] && 
+            !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl"].includes(key)) {
+          updatedFields[key] = newData[key];
+        }
+      });
+
+      if (Object.keys(updatedFields).length === 0) {
+        toast.info("No changes to update!");
+        return;
+      }
+
+      const treeId = formData.tid || formData.TID;
+      await treeService.updateTree(userId, treeId, updatedFields);
+      toast.success("Tree updated successfully!");
+
+      const newFormData = { ...formData, ...updatedFields };
+      setFormData(newFormData);
+      setInitialFormData(newFormData);
+
+      setTreeList((prevList) =>
+        prevList.map((item) =>
+          (item.tid || item.TID) === treeId ? { ...item, ...newFormData } : item
+        )
+      );
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating Tree:", error);
+      toast.error("Failed to update Tree!");
+    }
+  };
+
+  const handleAddTransaction = async (e) => {
+    e.preventDefault();
+    try {
+      const evId = modalContent.asset.ev_id || modalContent.asset.EV_ID;
+      const payload = {
+        U_ID: userId,
+        Asset_Type: 'ev',
+        Asset_ID: evId,
+        Transaction_Type: 'drive',
+        Amount: parseFloat(formData.active_distance) || 0,
+        Description: `Drove ${formData.active_distance} km`,
+      };
+
+      await transactionService.createTransaction(payload);
+      toast.success("Transaction added successfully!");
+      closeModal();
+      fetchAllData();
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      toast.error("Failed to add transaction");
+    }
+  };
+
+  const formatKey = (key) => {
+    return key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  const formatValue = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return "N/A";
+    }
+    return value.toString();
   };
 
   const renderModalContent = () => {
     if (!modalContent) return null;
 
     const { type, assetType } = modalContent;
-
-    const formatKey = (key) => {
-      return key
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (l) => l.toUpperCase());
-    };
 
     return (
       <motion.div
@@ -260,14 +281,15 @@ const handleSaveSolar = async () => {
           &times;
         </button>
 
-        <h2>View Details</h2>
+        <h2>{type}</h2>
+        
         {type === "View Details" ? (
           <>
-            {assetType === "EV" ? (
+            {assetType === "EV" && (
               <div className="asset-details-all">
                 {Object.entries(formData)
-                  .filter(([key]) =>
-                    !["vuid", "u id", "u_id", "v_uid", "ev_id"].includes(key.toLowerCase())
+                  .filter(([key]) => 
+                    !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID"].includes(key)
                   )
                   .map(([key, value]) => (
                     <p key={key}>
@@ -280,45 +302,41 @@ const handleSaveSolar = async () => {
                           onChange={handleInputChange}
                         />
                       ) : (
-                        value === null || value === "" ? "N/A" : value.toString()
+                        formatValue(value)
                       )}
                     </p>
                   ))}
 
-            
-<h3>Transactions</h3>
-{Array.isArray(evTransactionList) && evTransactionList.filter(Boolean).length > 0 ? (
-  <table>
-    <thead>
-      <tr>
-        <th>Transaction ID</th>
-        <th>Active Distance</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      {evTransactionList
-        .filter(Boolean)
-        .map((item) => (
-          <tr key={item.ev_tran_id}>
-            <td>{item.ev_tran_id}</td>
-            <td>{item.active_distance}</td>
-            <td>{new Date(item.created_date).toLocaleDateString()}</td>
-          </tr>
-        ))}
-    </tbody>
-  </table>
-) : (
-  <p>No transactions yet.</p>
-)}
-
-
-
+                <h3>Transactions</h3>
+                {evTransactionList.length > 0 ? (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evTransactionList.map((item) => (
+                        <tr key={item.Tran_ID || item.tran_id}>
+                          <td>{new Date(item.Transaction_Date || item.transaction_date).toLocaleDateString()}</td>
+                          <td>{item.Transaction_Type || item.transaction_type}</td>
+                          <td>{item.Amount || item.amount}</td>
+                          <td>{item.Description || item.description || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No transactions yet.</p>
+                )}
 
                 <button
                   onClick={() => {
                     if (isEditing) {
-                      handleSave();
+                      handleSaveEV();
                     } else {
                       setIsEditing(true);
                     }
@@ -328,60 +346,99 @@ const handleSaveSolar = async () => {
                   {isEditing ? "Save" : "Update"}
                 </button>
               </div>
-            ) : assetType === "Solar" ? (
-              <>
-                <p><strong>Capacity:</strong> {modalContent.asset.installed_capacity || "N/A"} kW</p>
-                <p><strong>Installation Date:</strong> {modalContent.asset.installation_date || "N/A"}</p>
-                <p><strong>Generation:</strong> {modalContent.asset.energy_generation_value ? `${modalContent.asset.energy_generation_value} kWh` : "N/A"}</p>
-                <p><strong>Inverter Type:</strong> {modalContent.asset.inverter_type || "N/A"}</p>
-                <button className="asset-update-button">Update</button>
-              </>
-            ) : (
-              <>
-                <p><strong>Tree Name:</strong> {modalContent.asset.treename || "N/A"}</p>
-                <p><strong>Botanical Name:</strong> {modalContent.asset.botanicalname || "N/A"}</p>
-                <p><strong>Planting Date:</strong> {modalContent.asset.plantingdate ? new Date(modalContent.asset.plantingdate).toLocaleDateString() : "N/A"}</p>
-                <p><strong>DBH:</strong> {modalContent.asset.dbh ? `${modalContent.asset.dbh} cm` : "N/A"}</p>
-                <p><strong>Height:</strong> {modalContent.asset.height ? `${modalContent.asset.height} m` : "N/A"}</p>
-                <p><strong>Location:</strong> {modalContent.asset.location || "N/A"}</p>
-                <p><strong>Photo:</strong></p>
+            )}
+
+            {assetType === "Solar" && (
+              <div className="asset-details-all">
+                {Object.entries(formData)
+                  .filter(([key]) => !["suid", "u_id", "SUID", "U_ID"].includes(key))
+                  .map(([key, value]) => (
+                    <p key={key}>
+                      <strong>{formatKey(key)}:</strong>{" "}
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name={key}
+                          value={value || ""}
+                          onChange={handleInputChange}
+                        />
+                      ) : (
+                        formatValue(value)
+                      )}
+                    </p>
+                  ))}
+                <button
+                  onClick={() => {
+                    if (isEditing) {
+                      handleSaveSolar();
+                    } else {
+                      setIsEditing(true);
+                    }
+                  }}
+                  className="asset-update-button"
+                >
+                  {isEditing ? "Save" : "Update"}
+                </button>
+              </div>
+            )}
+
+            {assetType === "Tree" && (
+              <div className="asset-details-all">
+                {Object.entries(formData)
+                  .filter(([key]) => !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl"].includes(key))
+                  .map(([key, value]) => (
+                    <p key={key}>
+                      <strong>{formatKey(key)}:</strong>{" "}
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name={key}
+                          value={value || ""}
+                          onChange={handleInputChange}
+                        />
+                      ) : (
+                        formatValue(value)
+                      )}
+                    </p>
+                  ))}
                 <div className="tree-photo-gallery">
-                  {modalContent.asset.imageurl ? (
-                    <img src={modalContent.asset.imageurl} alt="Tree" className="tree-photo-thumbnail" />
+                  {(formData.imageurl || formData.ImageURL || formData.imageUrl) ? (
+                    <img 
+                      src={formData.imageurl || formData.ImageURL || formData.imageUrl} 
+                      alt="Tree" 
+                      className="tree-photo-thumbnail" 
+                    />
                   ) : (
-                    <p>No photos available.</p>
+                    <p>No photo available.</p>
                   )}
                 </div>
-                <button className="asset-update-button">Update</button>
-              </>
+                <button
+                  onClick={() => {
+                    if (isEditing) {
+                      handleSaveTree();
+                    } else {
+                      setIsEditing(true);
+                    }
+                  }}
+                  className="asset-update-button"
+                >
+                  {isEditing ? "Save" : "Update"}
+                </button>
+              </div>
             )}
           </>
         ) : type === "Add Details" && assetType === "EV" ? (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                const payload = {
-                  ev_id: modalContent.asset.ev_id,
-                  active_distance: formData.active_distance,
-                };
-                await axios.post("https://add-asset-service.onrender.com/api/evtransaction", payload);
-                alert("Transaction added successfully!");
-                closeModal();
-              } catch (error) {
-                console.error("Error adding transaction:", error);
-                alert("Failed to add transaction");
-              }
-            }}
-          >
+          <form onSubmit={handleAddTransaction}>
             <p>
-              <strong>Active Distance (km):</strong>
+              <strong>Distance Driven (km):</strong>
               <input
                 type="number"
                 name="active_distance"
                 value={formData.active_distance || ""}
                 onChange={handleInputChange}
                 required
+                min="0"
+                step="0.1"
               />
             </p>
             <button type="submit" className="asset-update-button">Submit</button>
@@ -392,206 +449,253 @@ const handleSaveSolar = async () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading your sustainable assets...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="sustainable-assets">
-      <ToastContainer />
-      <h1 className="main-heading">My Sustainable Assets</h1>
-      <p className="main-subheading">Building a greener future, one asset at a time</p>
+    <div className="view-assets-container">
+      <ToastContainer position="top-right" autoClose={3000} />
+      
+      <div className="view-assets-header">
+        <h1 className="main-heading">My Sustainable Assets</h1>
+        <p className="main-subheading">Building a greener future, one asset at a time</p>
+      </div>
 
       {/* EV Section */}
-      <h2 className="section-heading">EVs</h2>
-      {evList.length === 0 ? (
-        <p>No EV assets listed yet.</p>
-      ) : (
-        <div className="asset-cards-container">
-          {evList.map((ev, idx) => (
-            <div key={`ev-${idx}`} className="asset-card">
-              <div className="asset-card-top">
-                <div className="asset-card-status">
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      color: "#000" // optional text color
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        backgroundColor:
-                          (assetStatuses[ev.ev_id] || "pending").toLowerCase() === "approved"
-                            ? "#28a745" // Green
-                            : (assetStatuses[ev.ev_id] || "pending").toLowerCase() === "rejected"
-                              ? "#dc3545" // Red
-                              : "#ffc107" // Yellow (for pending or default)
-                      }}
-                    ></span>
-                    {(assetStatuses[ev.ev_id] || "Pending")
-                      .charAt(0)
-                      .toUpperCase() +
-                      (assetStatuses[ev.ev_id] || "Pending").slice(1).toLowerCase()}
-                  </span>
+      <section className="asset-section">
+        <h2 className="section-heading">
+          <MdElectricBolt className="section-icon section-icon-ev" />
+          <span>Electric Vehicles</span>
+        </h2>
+        {evList.length === 0 ? (
+          <p className="no-assets-text">No EV assets listed yet.</p>
+        ) : (
+          <div className="asset-cards-container">
+            {evList.map((ev) => {
+              const evId = ev.ev_id || ev.EV_ID;
+              const model = ev.Model || ev.model || "Unnamed EV";
+              const manufacturer = ev.Manufacturers || ev.manufacturers || "Unknown Manufacturer";
+              const year = ev.Purchase_Year || ev.purchase_year || "N/A";
+              const range = ev.Range || ev.range;
+              const topSpeed = ev.Top_Speed || ev.top_speed;
+              const status = assetStatuses[evId] || "Pending";
 
-                </div>
+              return (
+                <div key={evId} className="asset-card">
+                  {/* Header */}
+                  <div className="asset-card-header">
+                    <div className="asset-card-status">
+                      <span 
+                        className="asset-card-dot" 
+                        style={{ backgroundColor: getStatusColor(status) }}
+                      ></span>
+                      <span className="asset-card-status-text">{getStatusText(status)}</span>
+                    </div>
+                    <span className="asset-card-tag asset-card-tag-ev">EV</span>
+                  </div>
 
-                <span className="asset-badge">EV</span>
-              </div>
-              <div className="asset-card-inner">
-                <h2>{ev.model || "Unnamed EV"}</h2>
-                <p className="asset-subtitle">{ev.manufacturers || "Unknown Manufacturer"}</p>
-                <div className="asset-info-box">
-                  <p><strong>Year:</strong> {ev.purchase_year || "N/A"}</p>
-                  <p><strong>Range:</strong> {ev.range ? `${ev.range} km` : "N/A"}</p>
-                  <p><strong>Top Speed:</strong> {ev.top_speed ? `${ev.top_speed} km/h` : "N/A"}</p>
+                  {/* Title */}
+                  <div className="asset-card-title-section">
+                    <h2 className="asset-card-title">{model}</h2>
+                    <p className="asset-card-subtitle">{manufacturer}</p>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="asset-card-info">
+                    <div className="asset-card-info-row">
+                      <span>Year:</span>
+                      <strong>{year}</strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Range:</span>
+                      <strong className="asset-card-highlight-ev">
+                        {range ? `${range} km` : "N/A"}
+                      </strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Top Speed:</span>
+                      <strong>{topSpeed ? `${topSpeed} km/h` : "N/A"}</strong>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="asset-card-actions">
+                    <button 
+                      className="asset-card-btn asset-card-btn-outline"
+                      onClick={() => openModal("View Details", ev, "EV")}
+                    >
+                      View
+                    </button>
+                    <button 
+                      className="asset-card-btn asset-card-btn-primary-ev"
+                      onClick={() => openModal("Add Details", ev, "EV")}
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-                <div className="asset-card-buttons">
-                  <button
-                    onClick={() => openModal("View Details", ev, "EV")}
-                    className="asset-view-button"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => openModal("Add Details", ev, "EV")}
-                    className="asset-add-button"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Solar Section */}
-      <h2 className="section-heading">Solar Panels</h2>
-      {solarList.length === 0 ? (
-        <p>No Solar Panel assets listed yet.</p>
-      ) : (
-        <div className="asset-cards-container">
-          {solarList.map((solar, idx) => (
-            <div key={`solar-${idx}`} className="asset-card">
-              <div className="asset-card-top">
-                <div className="asset-card-status">
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      color: "#000" // optional text color
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        backgroundColor:
-                          (assetStatuses[solar.suid] || "pending").toLowerCase() === "approved"
-                            ? "#28a745" // Green
-                            : (assetStatuses[solar.suid] || "pending").toLowerCase() === "rejected"
-                              ? "#dc3545" // Red
-                              : "#ffc107" // Yellow
-                      }}
-                    ></span>
-                    {(assetStatuses[solar.suid] || "Pending")
-                      .charAt(0)
-                      .toUpperCase() +
-                      (assetStatuses[solar.suid] || "Pending").slice(1).toLowerCase()}
-                  </span>
+      <section className="asset-section">
+        <h2 className="section-heading">
+          <PiSolarPanelLight className="section-icon section-icon-solar" />
+          <span>Solar Panels</span>
+        </h2>
+        {solarList.length === 0 ? (
+          <p className="no-assets-text">No Solar Panel assets listed yet.</p>
+        ) : (
+          <div className="asset-cards-container">
+            {solarList.map((solar) => {
+              const solarId = solar.suid || solar.SUID;
+              const inverterType = solar.Inverter_Type || solar.inverter_type || "Unknown Inverter";
+              const capacity = solar.Capacity_kW || solar.capacity_kw;
+              const generation = solar.Energy_Generated_kWh || solar.energy_generated_kwh;
+              const year = solar.Installation_Year || solar.installation_year;
+              const status = assetStatuses[solarId] || "Pending";
 
-                </div>
+              return (
+                <div key={solarId} className="asset-card">
+                  <div className="asset-card-header">
+                    <div className="asset-card-status">
+                      <span 
+                        className="asset-card-dot" 
+                        style={{ backgroundColor: getStatusColor(status) }}
+                      ></span>
+                      <span className="asset-card-status-text">{getStatusText(status)}</span>
+                    </div>
+                    <span className="asset-card-tag asset-card-tag-solar">Solar</span>
+                  </div>
 
-                <span className="asset-badge">Solar</span>
-              </div>
-              <div className="asset-card-inner">
-                <h2 className="asset-subtitle">{solar.inverter_type || "Unknown Inverter"}</h2>
-                <div className="asset-info-box">
-                  <p><strong>Capacity:</strong> {solar.installed_capacity ? `${solar.installed_capacity} kW` : "N/A"}</p>
-                  <p><strong>Generation:</strong> {solar.energy_generation_value ? `${solar.energy_generation_value} kWh` : "N/A"}</p>
+                  <div className="asset-card-title-section">
+                    <h2 className="asset-card-title">{inverterType}</h2>
+                    <p className="asset-card-subtitle">Solar Panel System</p>
+                  </div>
+
+                  <div className="asset-card-info">
+                    <div className="asset-card-info-row">
+                      <span>Year:</span>
+                      <strong>{year || "N/A"}</strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Capacity:</span>
+                      <strong className="asset-card-highlight-solar">
+                        {capacity ? `${capacity} kW` : "N/A"}
+                      </strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Generation:</span>
+                      <strong>{generation ? `${generation} kWh` : "N/A"}</strong>
+                    </div>
+                  </div>
+
+                  <div className="asset-card-actions">
+                    <button 
+                      className="asset-card-btn asset-card-btn-outline"
+                      onClick={() => openModal("View Details", solar, "Solar")}
+                    >
+                      View
+                    </button>
+                    <button 
+                      className="asset-card-btn asset-card-btn-primary-solar"
+                      disabled
+                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-                <div className="asset-card-buttons">
-                  <button
-                    onClick={() => openModal("View Details", solar, "Solar")}
-                    className="asset-view-button"
-                  >
-                    View
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Trees Section */}
-      <h2 className="section-heading">Trees</h2>
-      {treeList.length === 0 ? (
-        <p>No Tree assets listed yet.</p>
-      ) : (
-        <div className="asset-cards-container">
-          {treeList.map((tree, idx) => (
-            <div key={`tree-${idx}`} className="asset-card">
-              <div className="asset-card-top">
-                <div className="asset-card-status">
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      color: "#000" // optional: adjust if needed
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        backgroundColor:
-                          (assetStatuses[tree.tid] || "pending").toLowerCase() === "approved"
-                            ? "#28a745" // Green
-                            : (assetStatuses[tree.tid] || "pending").toLowerCase() === "rejected"
-                              ? "#dc3545" // Red
-                              : "#ffc107" // Yellow
-                      }}
-                    ></span>
-                    {(assetStatuses[tree.tid] || "Pending")
-                      .charAt(0)
-                      .toUpperCase() +
-                      (assetStatuses[tree.tid] || "Pending").slice(1).toLowerCase()}
-                  </span>
+      <section className="asset-section">
+        <h2 className="section-heading">
+          <GiTreeGrowth className="section-icon section-icon-tree" />
+          <span>Trees</span>
+        </h2>
+        {treeList.length === 0 ? (
+          <p className="no-assets-text">No Tree assets listed yet.</p>
+        ) : (
+          <div className="asset-cards-container">
+            {treeList.map((tree) => {
+              const treeId = tree.tid || tree.TID;
+              const commonName = tree.Common_Name || tree.common_name || "Unnamed Tree";
+              const scientificName = tree.Scientific_Name || tree.scientific_name || "Unknown Species";
+              const height = tree.Height_m || tree.height_m;
+              const location = tree.Location || tree.location;
+              const year = tree.Planting_Year || tree.planting_year;
+              const status = assetStatuses[treeId] || "Pending";
 
-                </div>
+              return (
+                <div key={treeId} className="asset-card">
+                  <div className="asset-card-header">
+                    <div className="asset-card-status">
+                      <span 
+                        className="asset-card-dot" 
+                        style={{ backgroundColor: getStatusColor(status) }}
+                      ></span>
+                      <span className="asset-card-status-text">{getStatusText(status)}</span>
+                    </div>
+                    <span className="asset-card-tag asset-card-tag-tree">Tree</span>
+                  </div>
 
-                <span className="asset-badge">Tree</span>
-              </div>
-              <div className="asset-card-inner">
-                <h2>{tree.treename || "Unnamed Tree"}</h2>
-                <p className="asset-subtitle">{tree.botanicalname || "Unknown Botanical Name"}</p>
-                <div className="asset-info-box">
-                  <p><strong>Height:</strong> {tree.height ? `${tree.height} m` : "N/A"}</p>
-                  <p><strong>Location:</strong> {tree.location || "N/A"}</p>
+                  <div className="asset-card-title-section">
+                    <h2 className="asset-card-title">{commonName}</h2>
+                    <p className="asset-card-subtitle">{scientificName}</p>
+                  </div>
+
+                  <div className="asset-card-info">
+                    <div className="asset-card-info-row">
+                      <span>Year:</span>
+                      <strong>{year || "N/A"}</strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Height:</span>
+                      <strong className="asset-card-highlight-tree">
+                        {height ? `${height} m` : "N/A"}
+                      </strong>
+                    </div>
+                    <div className="asset-card-info-row">
+                      <span>Location:</span>
+                      <strong>{location || "N/A"}</strong>
+                    </div>
+                  </div>
+
+                  <div className="asset-card-actions">
+                    <button 
+                      className="asset-card-btn asset-card-btn-outline"
+                      onClick={() => openModal("View Details", tree, "Tree")}
+                    >
+                      View
+                    </button>
+                    <button 
+                      className="asset-card-btn asset-card-btn-primary-tree"
+                      disabled
+                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-                <div className="asset-card-buttons">
-                  <button
-                    onClick={() => openModal("View Details", tree, "Tree")}
-                    className="asset-view-button"
-                  >
-                    View
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <AnimatePresence>
         {modalContent && (
@@ -610,4 +714,4 @@ const handleSaveSolar = async () => {
   );
 };
 
-export default SustainableAssets;
+export default ViewAssets;
