@@ -21,7 +21,7 @@ class TreeModel {
     return await transaction(async (client) => {
       const T_UID = `TUID_${uuidv4()}`;
 
-      // Insert tree
+      // ✅ FIXED: Use lowercase column names matching database schema
       const treeQuery = `
         INSERT INTO trees (
           t_uid, u_id, treename, botanicalname, plantingdate,
@@ -32,15 +32,15 @@ class TreeModel {
 
       const treeValues = [
         T_UID,
-        UID,
-        TreeName,
-        BotanicalName,
-        PlantingDate,
-        Height,
-        DBH,
-        Location,
-        CreatedBy,
-        "pending",
+        UID,           // u_id
+        TreeName,      // treename
+        BotanicalName, // botanicalname
+        PlantingDate,  // plantingdate
+        Height,        // height
+        DBH,           // dbh
+        Location,      // location
+        CreatedBy,     // created_by
+        "pending",     // status
       ];
 
       const treeResult = await client.query(treeQuery, treeValues);
@@ -52,7 +52,7 @@ class TreeModel {
           await client.query(
             `INSERT INTO tree_images (tid, image_url, cloudinary_public_id)
              VALUES ($1, $2, $3)`,
-            [tree.tid, imageUrl, null] // You can extract public_id from cloudinary URL if needed
+            [tree.tid, imageUrl, null]
           );
         }
       }
