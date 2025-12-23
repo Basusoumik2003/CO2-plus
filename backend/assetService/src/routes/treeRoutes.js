@@ -6,21 +6,18 @@ const {
   verifyAssetOwnership,
   logUserAction,
 } = require("../middleware/auth");
+const { validateTreeCreate, validateTreeUpdate } = require("../middleware/validator");
 
-/**
- * Tree Routes
- * Base URL: /api/tree
- */
-
-// Create new Tree
+// Create new tree - FIXED: Added validation
 router.post(
   "/",
+  validateTreeCreate,
   validateUserId,
   logUserAction("CREATE_TREE"),
   TreeController.createTree
 );
 
-// Get all Trees for a user
+// Get all trees for a user
 router.get(
   "/:userId",
   validateUserId,
@@ -28,23 +25,24 @@ router.get(
   TreeController.getTreesByUser
 );
 
-// Get single Tree by ID
+// Get single tree by ID
 router.get(
   "/single/:tid",
   logUserAction("GET_TREE_DETAILS"),
   TreeController.getTreeById
 );
 
-// Update Tree
+// Update tree - FIXED: Added validation
 router.put(
   "/:tid",
+  validateTreeUpdate,
   validateUserId,
   verifyAssetOwnership("tree"),
   logUserAction("UPDATE_TREE"),
   TreeController.updateTree
 );
 
-// Delete Tree
+// Delete tree
 router.delete(
   "/:tid",
   validateUserId,
@@ -53,23 +51,7 @@ router.delete(
   TreeController.deleteTree
 );
 
-// Add image to Tree
-router.post(
-  "/:tid/image",
-  validateUserId,
-  verifyAssetOwnership("tree"),
-  logUserAction("ADD_TREE_IMAGE"),
-  TreeController.addTreeImage
-);
-
-// Delete Tree image
-router.delete(
-  "/image/:imageId",
-  logUserAction("DELETE_TREE_IMAGE"),
-  TreeController.deleteTreeImage
-);
-
-// Update Tree status (Admin only)
+// Update tree status
 router.patch(
   "/:tid/status",
   logUserAction("UPDATE_TREE_STATUS"),
