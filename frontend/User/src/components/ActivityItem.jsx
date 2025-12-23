@@ -1,9 +1,10 @@
-import React from 'react';
-import '../styles/ActivityItem.css';
+import React from "react";
+import "../styles/ActivityItem.css";
 
-const ActivityItem = ({ titleIcon, title, detail, time, credits }) => {
+const ActivityItem = ({ titleIcon, title, detail, time, credits, imageUrl, type }) => {
   return (
-    <div className="activity-item">
+    <div className="activity-item" data-type={type}>
+      {/* Header */}
       <div className="activity-header">
         <div className="activity-title-wrapper">
           {titleIcon && <span className="activity-icon">{titleIcon}</span>}
@@ -11,11 +12,28 @@ const ActivityItem = ({ titleIcon, title, detail, time, credits }) => {
         </div>
         {credits && <span className="activity-credits">{credits}</span>}
       </div>
-      
-      <div className="activity-details">
-        {detail}
+
+      {/* Body: details + optional image */}
+      <div className="activity-body">
+        <div className="activity-details">
+          {detail}
+        </div>
+
+        {imageUrl && (
+          <div className="activity-tree-image">
+            <img
+              src={imageUrl}
+              alt="Tree"
+              className="tree-thumbnail"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          </div>
+        )}
       </div>
-      
+
+      {/* Footer */}
       <div className="activity-footer">
         <span className="activity-time">{time}</span>
       </div>

@@ -2,7 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import AdminHeader from "./components/AdminHeader";
 import AdminNavbar from "./components/AdminNavbar"; 
-import AdminDashboard from "./pages/AdminDashboard"; // 
+import AdminDashboard from "./pages/AdminDashboard";  
 import Overview from "./pages/Overview";
 import Users from "./pages/Users";
 import Support from "./pages/Support";

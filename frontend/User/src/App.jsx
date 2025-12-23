@@ -6,6 +6,8 @@ import "./App.css";
 import Home from './pages/Home';
 import UserDashboard from './components/userDashboard';
 // import OrgDashboard from '../../OrgDashboard/src/pages/OrgDashboard'
+// import AddAsset from './components/AddAsset';
+import AdminDashboard from '../../Admin/src/pages/AdminDashboard';
 import Upload from './components/upload';
 import Blog from './pages/blog';
 import Engage from './pages/engage';
@@ -37,6 +39,13 @@ const App = () => {
       window.location.href = "https://frontend-org.onrender.com";
     }, []);
     return <p>Redirecting to Organization Dashboard...</p>;
+  };
+
+  const RedirectToAdmin = () => {
+    useEffect(() => {
+      window.location.href = "http://localhost:5174";
+    }, []);
+    return <p>Redirecting to Admin Dashboard...</p>;
   };
 
   // Initial auth state based on token in localStorage
@@ -74,7 +83,7 @@ const App = () => {
 
   // Decide when to hide Navbar
   const shouldHideNavbar = () => {
-    const hideNavbarRoutes = ['/userDashboard', '/orgDashboard'];
+    const hideNavbarRoutes = ['/userDashboard', '/orgDashboard', '/admin'];
     if (location.pathname.startsWith('/games')) return true; 
     return hideNavbarRoutes.includes(location.pathname);
   };
@@ -125,6 +134,7 @@ const App = () => {
         <Route path="/game" element={<Games />} />
         <Route path="/userDashboard" element={<UserDashboard />} />
         <Route path="/orgDashboard" element={<RedirectToOrg />} />
+        <Route path="/adminDashboard" element={<RedirectToAdmin />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/blog" element={<Blog isAuthenticated={isAuthenticated} />} />
         <Route path="/engage" element={<Engage />} />

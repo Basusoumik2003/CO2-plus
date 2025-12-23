@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   FaBars,
-  FaUserCircle,
   FaBlog,
   FaChartLine,
   FaStore,
@@ -17,9 +16,20 @@ const AdminHeader = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showLogoutMsg, setShowLogoutMsg] = useState(false);
+  const [adminName, setAdminName] = useState("");
   const dropdownRef = useRef(null);
   const profileRef = useRef(null);
   const navigate = useNavigate();
+
+  // ✅ Load admin info from localStorage (filled from DB at login)
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      // adjust keys according to your backend response
+      setAdminName(user.name || user.fullName || user.username || "Admin");
+    }
+  }, []);
 
   const toggleDropdown = (e) => {
     e.preventDefault();
@@ -40,9 +50,16 @@ const AdminHeader = () => {
   const handleLogout = () => {
     setIsProfileOpen(false);
     setShowLogoutMsg(true);
+
+    // ✅ Clear all authentication data
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("role");
+
     setTimeout(() => {
       setShowLogoutMsg(false);
-      navigate("/login");
+      navigate("/home"); // ✅ user home page
     }, 2000);
   };
 
@@ -62,12 +79,15 @@ const AdminHeader = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // first letter for circle, like "T"
+  const initial = adminName ? adminName.charAt(0).toUpperCase() : "";
+
   return (
     <>
       <header className="admin-header">
         {/* Left Section */}
         <div className="header-left">
-          {/* ✅ Hamburger Dropdown */}
+          {/* Hamburger Dropdown */}
           <div className="hamburger-container" ref={dropdownRef}>
             <FaBars className="hamburger" onClick={toggleDropdown} />
             {isDropdownOpen && (
@@ -107,9 +127,13 @@ const AdminHeader = () => {
           </div>
         </div>
 
-        {/* ✅ Profile Section */}
+        {/* Right Section – admin chip like "Tom" */}
         <div className="header-right" ref={profileRef}>
-          <FaUserCircle className="profile-icon" onClick={toggleProfile} />
+          <div className="admin-chip" onClick={toggleProfile}>
+            <div className="admin-avatar-circle">{initial}</div>
+            <span className="admin-chip-name">{adminName}</span>
+          </div>
+
           {isProfileOpen && (
             <div className="profile-popup">
               <ul>
@@ -120,7 +144,7 @@ const AdminHeader = () => {
         </div>
       </header>
 
-      {/* ✅ Logout Popup */}
+      {/* Logout Popup */}
       {showLogoutMsg && (
         <div className="logout-popup">
           <p>✅ Logged out successfully!</p>
