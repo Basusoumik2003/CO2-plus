@@ -1,18 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const StatusController = require("../controllers/statusController");
-const { validateUserId, logUserAction } = require("../middleware/auth");
+const { logUserAction } = require("../middleware/auth");
 
-/**
- * Asset Status Routes
- * Base URL: /api/assets
- */
-
-// Get all asset statuses for a user
+// Get status of all assets for a specific user
 router.get(
   "/user/:userId/status",
-  validateUserId,
-  logUserAction("GET_ASSET_STATUSES"),
+  logUserAction("GET_USER_ASSET_STATUS"),
   StatusController.getUserAssetStatuses
 );
 

@@ -2,15 +2,12 @@ const express = require("express");
 const router = express.Router();
 const TransactionController = require("../controllers/transactionController");
 const { validateUserId, logUserAction } = require("../middleware/auth");
+const { validateTransactionCreate } = require("../middleware/validator");
 
-/**
- * EV Transaction Routes
- * Base URLs: /api/evtransaction, /api/by-ev
- */
-
-// Create EV Transaction
+// Create EV Transaction - FIXED: Added validation
 router.post(
   "/evtransaction",
+  validateTransactionCreate,
   validateUserId,
   logUserAction("CREATE_EV_TRANSACTION"),
   TransactionController.createTransaction

@@ -1,4 +1,12 @@
 const winston = require('winston');
+const fs = require('fs');
+const path = require('path');
+
+// Ensure logs directory exists
+const logsDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const logger = winston.createLogger({
   level: 'error',
@@ -11,17 +19,13 @@ const logger = winston.createLogger({
       format: winston.format.simple()
     }),
     new winston.transports.File({ 
-      filename: 'logs/error.log',
+      filename: path.join(logsDir, 'error.log'),
       level: 'error'
     })
   ]
 });
 
-/**
- * Global error handler middleware
- */
 const errorHandler = (err, req, res, next) => {
-  // Log error
   logger.error('Error occurred:', {
     message: err.message,
     stack: err.stack,
@@ -31,27 +35,25 @@ const errorHandler = (err, req, res, next) => {
     userId: req.userId || 'unknown'
   });
 
-  // Default error
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     statusCode = 400;
     message = 'Validation Error';
   }
 
-  if (err.code === '23505') { // PostgreSQL unique violation
+  if (err.code === '23505') {
     statusCode = 409;
     message = 'Duplicate entry. Resource already exists';
   }
 
-  if (err.code === '23503') { // PostgreSQL foreign key violation
+  if (err.code === '23503') {
     statusCode = 400;
     message = 'Referenced resource does not exist';
   }
 
-  if (err.code === '22P02') { // PostgreSQL invalid input syntax
+  if (err.code === '22P02') {
     statusCode = 400;
     message = 'Invalid input format';
   }
@@ -65,7 +67,6 @@ const errorHandler = (err, req, res, next) => {
     }
   }
 
-  // Send error response
   res.status(statusCode).json({
     status: 'error',
     message: message,
@@ -76,9 +77,6 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-/**
- * 404 Not Found handler
- */
 const notFoundHandler = (req, res, next) => {
   res.status(404).json({
     status: 'error',
@@ -87,9 +85,6 @@ const notFoundHandler = (req, res, next) => {
   });
 };
 
-/**
- * Async error wrapper
- */
 const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
