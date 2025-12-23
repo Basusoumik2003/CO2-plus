@@ -1,175 +1,101 @@
-import apiClient from './api';
+import apiClient from "./api";
 
 const evService = {
-  /**
-   * Get all EVs for a specific user
-   * @param {string} userId - User ID
-   * @returns {Promise} API response with EV list
-   */
+  // ==============================
+  // Get all EVs for a user
+  // GET /api/v1/evmasterdata/:userId
+  // ==============================
   getAllEVs: async (userId) => {
     try {
-      const response = await apiClient.get(`/evmasterdata/${userId}`);
-      return response.data;
+      const res = await apiClient.get(`/evmasterdata/${userId}`);
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to fetch EVs:', error);
-      throw error.response?.data || { 
-        status: 'error', 
-        message: error.message || 'Failed to fetch EVs' 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to fetch EVs",
       };
     }
   },
 
-  /**
-   * Get a specific EV by ID
-   * @param {string} userId - User ID
-   * @param {string} evId - EV ID
-   * @returns {Promise} API response with EV details
-   */
-  getEV: async (userId, evId) => {
+  // ==============================
+  // Get single EV
+  // GET /api/v1/evmasterdata/single/:ev_id
+  // ==============================
+  getEV: async (evId) => {
     try {
-      const response = await apiClient.get(`/evmasterdata/${userId}/${evId}`);
-      return response.data;
+      const res = await apiClient.get(`/evmasterdata/single/${evId}`);
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to fetch EV:', error);
-      throw error.response?.data || { 
-        status: 'error', 
-        message: error.message || 'Failed to fetch EV details' 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to fetch EV",
       };
     }
   },
 
-  /**
-   * Create a new EV
-   * @param {Object} evData - EV data object
-   * @returns {Promise} API response with created EV
-   */
+  // ==============================
+  // Create EV
+  // POST /api/v1/evmasterdata
+  // ==============================
   createEV: async (evData) => {
     try {
-      console.log('📝 Creating EV with data:', evData);
-      const response = await apiClient.post('/evmasterdata', evData);
-      console.log('✅ EV created successfully:', response.data);
-      return response.data;
+      const res = await apiClient.post("/evmasterdata", evData);
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to create EV:', error);
-      
-      // Extract error message
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Failed to create EV';
-      
-      throw error.response?.data || { 
-        status: 'error', 
-        message: errorMessage 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to create EV",
       };
     }
   },
 
-  /**
-   * Update an existing EV
-   * @param {string} userId - User ID
-   * @param {string} evId - EV ID
-   * @param {Object} evData - Updated EV data
-   * @returns {Promise} API response with updated EV
-   */
-  updateEV: async (userId, evId, evData) => {
+  // ==============================
+  // Update EV
+  // PUT /api/v1/evmasterdata/:ev_id
+  // ==============================
+  updateEV: async (evId, evData) => {
     try {
-      console.log('📝 Updating EV:', evId, 'with data:', evData);
-      const response = await apiClient.put(`/evmasterdata/${userId}/${evId}`, evData);
-      console.log('✅ EV updated successfully:', response.data);
-      return response.data;
+      const res = await apiClient.put(`/evmasterdata/${evId}`, evData);
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to update EV:', error);
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Failed to update EV';
-      
-      throw error.response?.data || { 
-        status: 'error', 
-        message: errorMessage 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to update EV",
       };
     }
   },
 
-  /**
-   * Delete an EV
-   * @param {string} userId - User ID
-   * @param {string} evId - EV ID
-   * @returns {Promise} API response
-   */
-  deleteEV: async (userId, evId) => {
+  // ==============================
+  // Delete EV
+  // DELETE /api/v1/evmasterdata/:ev_id
+  // ==============================
+  deleteEV: async (evId) => {
     try {
-      console.log('🗑️ Deleting EV:', evId);
-      const response = await apiClient.delete(`/evmasterdata/${userId}/${evId}`);
-      console.log('✅ EV deleted successfully:', response.data);
-      return response.data;
+      const res = await apiClient.delete(`/evmasterdata/${evId}`);
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to delete EV:', error);
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Failed to delete EV';
-      
-      throw error.response?.data || { 
-        status: 'error', 
-        message: errorMessage 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to delete EV",
       };
     }
   },
 
-  /**
-   * Get EV approval status
-   * @param {string} userId - User ID
-   * @param {string} evId - EV ID
-   * @returns {Promise} API response with status
-   */
-  getEVStatus: async (userId, evId) => {
+  // ==============================
+  // Update EV Status (Admin)
+  // PATCH /api/v1/evmasterdata/:ev_id/status
+  // ==============================
+  updateEVStatus: async (evId, status) => {
     try {
-      const response = await apiClient.get(`/evmasterdata/${userId}/${evId}/status`);
-      return response.data;
+      const res = await apiClient.patch(
+        `/evmasterdata/${evId}/status`,
+        { status }
+      );
+      return res.data;
     } catch (error) {
-      console.error('❌ Failed to fetch EV status:', error);
-      
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Failed to fetch EV status';
-      
-      throw error.response?.data || { 
-        status: 'error', 
-        message: errorMessage 
-      };
-    }
-  },
-
-  /**
-   * Get EV statistics for dashboard
-   * @param {string} userId - User ID
-   * @returns {Promise} API response with statistics
-   */
-  getEVStats: async (userId) => {
-    try {
-      const response = await apiClient.get(`/evmasterdata/${userId}`);
-      const evs = response.data.data || [];
-      
-      return {
-        status: 'success',
-        stats: {
-          total: evs.length,
-          approved: evs.filter(ev => ev.status === 'approved').length,
-          pending: evs.filter(ev => ev.status === 'pending').length,
-          rejected: evs.filter(ev => ev.status === 'rejected').length,
-        },
-        evs
-      };
-    } catch (error) {
-      console.error('❌ Failed to fetch EV stats:', error);
-      throw error.response?.data || { 
-        status: 'error', 
-        message: 'Failed to fetch EV statistics' 
+      throw error.response?.data || {
+        status: "error",
+        message: "Failed to update EV status",
       };
     }
   },
