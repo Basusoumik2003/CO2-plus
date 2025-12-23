@@ -6,21 +6,18 @@ const {
   verifyAssetOwnership,
   logUserAction,
 } = require("../middleware/auth");
+const { validateSolarCreate, validateSolarUpdate } = require("../middleware/validator");
 
-/**
- * Solar Panel Routes
- * Base URL: /api/solarpanel
- */
-
-// Create new Solar Panel
+// Create new solar panel - FIXED: Added validation
 router.post(
   "/",
+  validateSolarCreate,
   validateUserId,
   logUserAction("CREATE_SOLAR"),
   SolarController.createSolar
 );
 
-// Get all Solar Panels for a user
+// Get all solar panels for a user
 router.get(
   "/:userId",
   validateUserId,
@@ -28,23 +25,24 @@ router.get(
   SolarController.getSolarByUser
 );
 
-// Get single Solar Panel by ID
+// Get single solar panel by ID
 router.get(
   "/single/:suid",
   logUserAction("GET_SOLAR_DETAILS"),
   SolarController.getSolarById
 );
 
-// Update Solar Panel
+// Update solar panel - FIXED: Added validation
 router.put(
   "/:suid",
+  validateSolarUpdate,
   validateUserId,
   verifyAssetOwnership("solar"),
   logUserAction("UPDATE_SOLAR"),
   SolarController.updateSolar
 );
 
-// Delete Solar Panel
+// Delete solar panel
 router.delete(
   "/:suid",
   validateUserId,
@@ -53,7 +51,7 @@ router.delete(
   SolarController.deleteSolar
 );
 
-// Update Solar Panel status (Admin only)
+// Update solar panel status
 router.patch(
   "/:suid/status",
   logUserAction("UPDATE_SOLAR_STATUS"),

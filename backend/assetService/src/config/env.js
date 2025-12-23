@@ -9,7 +9,7 @@ const config = {
     port: parseInt(process.env.DB_PORT) || 5432,
     name: process.env.DB_NAME || 'gocarbonpositive',
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '', // Ensure it's a string
+    password: process.env.DB_PASSWORD || '',
     url: process.env.DATABASE_URL
   },
   
@@ -34,13 +34,5 @@ const config = {
     level: process.env.LOG_LEVEL || 'info'
   }
 };
-
-// Debug: Check if password is loaded
-console.log('Config loaded:', {
-  dbHost: config.db.host,
-  dbName: config.db.name,
-  dbUser: config.db.user,
-  passwordExists: !!config.db.password
-});
 
 module.exports = config;

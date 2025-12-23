@@ -6,15 +6,12 @@ const {
   verifyAssetOwnership,
   logUserAction,
 } = require("../middleware/auth");
+const { validateEVCreate, validateEVUpdate } = require("../middleware/validator");
 
-/**
- * EV Routes
- * Base URL: /api/evmasterdata
- */
-
-// Create new EV
+// Create new EV - FIXED: Added validation
 router.post(
   "/",
+  validateEVCreate,
   validateUserId,
   logUserAction("CREATE_EV"),
   EVController.createEV
@@ -35,9 +32,10 @@ router.get(
   EVController.getEVById
 );
 
-// Update EV
+// Update EV - FIXED: Added validation
 router.put(
   "/:ev_id",
+  validateEVUpdate,
   validateUserId,
   verifyAssetOwnership("ev"),
   logUserAction("UPDATE_EV"),
@@ -53,7 +51,7 @@ router.delete(
   EVController.deleteEV
 );
 
-// Update EV status (Admin only - can add admin middleware later)
+// Update EV status
 router.patch(
   "/:ev_id/status",
   logUserAction("UPDATE_EV_STATUS"),
