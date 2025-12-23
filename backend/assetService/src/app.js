@@ -3,58 +3,54 @@ const compression = require("compression");
 const morgan = require("morgan");
 const config = require("./config/env");
 const logger = require("./utils/logger");
-const { testConnection } = require("./config/database");
 
-// Import middleware
+// Security middleware
 const {
   configureCORS,
   configureHelmet,
   sanitizeRequest,
 } = require("./middleware/security");
+
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
-// Import routes
+// Routes
 const routes = require("./routes");
 
-// Create Express app
 const app = express();
 
 /**
  * ========================================
- * MIDDLEWARE CONFIGURATION
+ * GLOBAL MIDDLEWARE
  * ========================================
  */
 
-// Security middleware
-app.use(configureHelmet()); // Security headers
-app.use(configureCORS()); // CORS configuration
+// Security headers & CORS
+app.use(configureHelmet());
+app.use(configureCORS());
 
-// Request parsing
-app.use(express.json({ limit: "10mb" })); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true, limit: "10mb" })); // Parse URL-encoded bodies
+// Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Compression
-app.use(compression()); // Gzip compression
+app.use(compression());
 
-// Request sanitization
+// Sanitize input
 app.use(sanitizeRequest);
 
 // Logging
 if (config.nodeEnv === "development") {
-  app.use(morgan("dev")); // Detailed logging in development
+  app.use(morgan("dev"));
 } else {
   app.use(
     morgan("combined", {
       stream: {
-        write: (message) => logger.info(message.trim()),
+        write: (msg) => logger.info(msg.trim()),
       },
     })
   );
 }
-
-// Rate limiting
-app.use("/api/", apiLimiter);
 
 /**
  * ========================================
@@ -62,53 +58,30 @@ app.use("/api/", apiLimiter);
  * ========================================
  */
 
-// Root endpoint
+// Root
 app.get("/", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "success",
-    message: "CO2+ Asset Management Service API",
+    service: "CO2+ Asset Management API",
     version: "1.0.0",
     environment: config.nodeEnv,
-    endpoints: {
-      health: "/api/v1/health",
-      evs: "/api/v1/evmasterdata",
-      solar: "/api/v1/solarpanel",
-      trees: "/api/v1/tree",
-      transactions: "/api/v1/evtransaction",
-      images: "/api/v1/image/upload",
-      status: "/api/v1/assets/user/:userId/status",
-    },
-    documentation: "https://github.com/your-repo/api-docs",
   });
 });
 
+// Health check
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Service is healthy",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Rate limit ONLY API
+app.use("/api/v1", apiLimiter);
+
 // API routes
 app.use("/api/v1", routes);
-
-// Test database connection endpoint
-app.get("/api/v1/test-db", async (req, res) => {
-  try {
-    const isConnected = await testConnection();
-    if (isConnected) {
-      res.status(200).json({
-        status: "success",
-        message: "Database connection successful",
-        timestamp: new Date().toISOString(),
-      });
-    } else {
-      res.status(503).json({
-        status: "error",
-        message: "Database connection failed",
-      });
-    }
-  } catch (error) {
-    res.status(503).json({
-      status: "error",
-      message: "Database connection error",
-      error: error.message,
-    });
-  }
-});
 
 /**
  * ========================================
@@ -116,21 +89,17 @@ app.get("/api/v1/test-db", async (req, res) => {
  * ========================================
  */
 
-// 404 handler - must be after all routes
 app.use(notFoundHandler);
-
-// Global error handler - must be last
 app.use(errorHandler);
 
 /**
  * ========================================
- * GRACEFUL SHUTDOWN
+ * PROCESS SAFETY
  * ========================================
  */
 
-// Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
-  logger.error("UNHANDLED REJECTION! 💥 Shutting down...", {
+  logger.error("UNHANDLED PROMISE REJECTION 💥", {
     error: err.message,
     stack: err.stack,
   });
@@ -140,13 +109,11 @@ process.on("unhandledRejection", (err) => {
   }
 });
 
-// Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
-  logger.error("UNCAUGHT EXCEPTION! 💥 Shutting down...", {
+  logger.error("UNCAUGHT EXCEPTION 💥", {
     error: err.message,
     stack: err.stack,
   });
-
   process.exit(1);
 });
 

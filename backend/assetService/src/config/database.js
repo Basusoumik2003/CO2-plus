@@ -71,8 +71,27 @@ const query = async (text, params) => {
   }
 };
 
+// ✅ ADDED: Transaction helper function
+const transaction = async (callback) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Transaction error:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// ✅ FIXED: Export transaction function
 module.exports = {
   pool,
   query,
+  transaction,  // ✅ Added this line
   testConnection
 };

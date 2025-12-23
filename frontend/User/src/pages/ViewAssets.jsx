@@ -58,6 +58,12 @@ const ViewAssets = () => {
       console.log("✅ EV Data:", evData);
       console.log("✅ Solar Data:", solarData);
       console.log("✅ Tree Data:", treeData);
+      
+      // ✅ Debug: Check exact structure of first solar panel
+      if (solarData.data && solarData.data.length > 0) {
+        console.log("🔍 First Solar Panel Fields:", Object.keys(solarData.data[0]));
+        console.log("🔍 First Solar Panel Data:", solarData.data[0]);
+      }
 
       setEvList(evData.data || []);
       setSolarList(solarData.data || []);
@@ -120,7 +126,7 @@ const ViewAssets = () => {
       const updatedFields = {};
       Object.keys(newData).forEach((key) => {
         if (newData[key] !== originalData[key] && 
-            !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID"].includes(key)) {
+            !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID", "created_at", "updated_at", "status"].includes(key.toLowerCase())) {
           updatedFields[key] = newData[key];
         }
       });
@@ -131,7 +137,7 @@ const ViewAssets = () => {
       }
 
       const evId = formData.ev_id || formData.EV_ID;
-      await evService.updateEV(userId, evId, updatedFields);
+      await evService.updateEV(evId, updatedFields);
       toast.success("EV updated successfully!");
 
       const newFormData = { ...formData, ...updatedFields };
@@ -159,7 +165,7 @@ const ViewAssets = () => {
       const updatedFields = {};
       Object.keys(newData).forEach((key) => {
         if (newData[key] !== originalData[key] && 
-            !["suid", "u_id", "SUID", "U_ID"].includes(key)) {
+            !["suid", "u_id", "SUID", "U_ID", "s_uid", "created_at", "updated_at", "status"].includes(key.toLowerCase())) {
           updatedFields[key] = newData[key];
         }
       });
@@ -169,8 +175,8 @@ const ViewAssets = () => {
         return;
       }
 
-      const solarId = formData.suid || formData.SUID;
-      await solarService.updateSolarPanel(userId, solarId, updatedFields);
+      const solarId = formData.suid || formData.SUID || formData.s_uid;
+      await solarService.updateSolarPanel(solarId, updatedFields);
       toast.success("Solar panel updated successfully!");
 
       const newFormData = { ...formData, ...updatedFields };
@@ -179,7 +185,7 @@ const ViewAssets = () => {
 
       setSolarList((prevList) =>
         prevList.map((item) =>
-          (item.suid || item.SUID) === solarId ? { ...item, ...newFormData } : item
+          (item.suid || item.SUID || item.s_uid) === solarId ? { ...item, ...newFormData } : item
         )
       );
 
@@ -198,7 +204,7 @@ const ViewAssets = () => {
       const updatedFields = {};
       Object.keys(newData).forEach((key) => {
         if (newData[key] !== originalData[key] && 
-            !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl"].includes(key)) {
+            !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl", "image_url", "created_at", "updated_at", "status"].includes(key.toLowerCase())) {
           updatedFields[key] = newData[key];
         }
       });
@@ -209,7 +215,7 @@ const ViewAssets = () => {
       }
 
       const treeId = formData.tid || formData.TID;
-      await treeService.updateTree(userId, treeId, updatedFields);
+      await treeService.updateTree(treeId, updatedFields);
       toast.success("Tree updated successfully!");
 
       const newFormData = { ...formData, ...updatedFields };
@@ -289,7 +295,7 @@ const ViewAssets = () => {
               <div className="asset-details-all">
                 {Object.entries(formData)
                   .filter(([key]) => 
-                    !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID"].includes(key)
+                    !["vuid", "u_id", "v_uid", "ev_id", "VUID", "U_ID", "V_UID", "EV_ID", "created_at", "updated_at", "status"].includes(key.toLowerCase())
                   )
                   .map(([key, value]) => (
                     <p key={key}>
@@ -351,7 +357,7 @@ const ViewAssets = () => {
             {assetType === "Solar" && (
               <div className="asset-details-all">
                 {Object.entries(formData)
-                  .filter(([key]) => !["suid", "u_id", "SUID", "U_ID"].includes(key))
+                  .filter(([key]) => !["suid", "u_id", "SUID", "U_ID", "s_uid", "created_at", "updated_at", "status"].includes(key.toLowerCase()))
                   .map(([key, value]) => (
                     <p key={key}>
                       <strong>{formatKey(key)}:</strong>{" "}
@@ -385,7 +391,7 @@ const ViewAssets = () => {
             {assetType === "Tree" && (
               <div className="asset-details-all">
                 {Object.entries(formData)
-                  .filter(([key]) => !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl"].includes(key))
+                  .filter(([key]) => !["tid", "u_id", "imageurl", "TID", "U_ID", "ImageURL", "imageUrl", "image_url", "created_at", "updated_at", "status"].includes(key.toLowerCase()))
                   .map(([key, value]) => (
                     <p key={key}>
                       <strong>{formatKey(key)}:</strong>{" "}
@@ -402,9 +408,9 @@ const ViewAssets = () => {
                     </p>
                   ))}
                 <div className="tree-photo-gallery">
-                  {(formData.imageurl || formData.ImageURL || formData.imageUrl) ? (
+                  {(formData.imageurl || formData.ImageURL || formData.imageUrl || formData.image_url) ? (
                     <img 
-                      src={formData.imageurl || formData.ImageURL || formData.imageUrl} 
+                      src={formData.imageurl || formData.ImageURL || formData.imageUrl || formData.image_url} 
                       alt="Tree" 
                       className="tree-photo-thumbnail" 
                     />
@@ -479,12 +485,12 @@ const ViewAssets = () => {
           <div className="asset-cards-container">
             {evList.map((ev) => {
               const evId = ev.ev_id || ev.EV_ID;
-              const model = ev.Model || ev.model || "Unnamed EV";
-              const manufacturer = ev.Manufacturers || ev.manufacturers || "Unknown Manufacturer";
-              const year = ev.Purchase_Year || ev.purchase_year || "N/A";
-              const range = ev.Range || ev.range;
-              const topSpeed = ev.Top_Speed || ev.top_speed;
-              const status = assetStatuses[evId] || "Pending";
+              const model = ev.model || ev.Model || "Unnamed EV";
+              const manufacturer = ev.manufacturers || ev.Manufacturers || "Unknown Manufacturer";
+              const year = ev.purchase_year || ev.Purchase_Year || "N/A";
+              const range = ev.range || ev.Range;
+              const topSpeed = ev.top_speed || ev.Top_Speed;
+              const status = assetStatuses[evId] || ev.status || "pending";
 
               return (
                 <div key={evId} className="asset-card">
@@ -546,7 +552,7 @@ const ViewAssets = () => {
         )}
       </section>
 
-      {/* Solar Section */}
+      {/* Solar Section - ✅ FIXED */}
       <section className="asset-section">
         <h2 className="section-heading">
           <PiSolarPanelLight className="section-icon section-icon-solar" />
@@ -557,12 +563,18 @@ const ViewAssets = () => {
         ) : (
           <div className="asset-cards-container">
             {solarList.map((solar) => {
-              const solarId = solar.suid || solar.SUID;
-              const inverterType = solar.Inverter_Type || solar.inverter_type || "Unknown Inverter";
-              const capacity = solar.Capacity_kW || solar.capacity_kw;
-              const generation = solar.Energy_Generated_kWh || solar.energy_generated_kwh;
-              const year = solar.Installation_Year || solar.installation_year;
-              const status = assetStatuses[solarId] || "Pending";
+              const solarId = solar.suid || solar.SUID || solar.s_uid;
+              
+              // ✅ FIXED: Use correct backend field names
+              const inverterType = solar.inverter_type || solar.Inverter_Type || "microinverter";
+              const capacity = solar.installed_capacity || solar.Installed_Capacity;
+              const generation = solar.energy_generation_value || solar.Energy_Generation_Value;
+              
+              // ✅ FIXED: Extract year from installation_date
+              const installationDate = solar.installation_date || solar.Installation_Date;
+              const year = installationDate ? new Date(installationDate).getFullYear() : "N/A";
+              
+              const status = assetStatuses[solarId] || solar.status || "pending";
 
               return (
                 <div key={solarId} className="asset-card">
@@ -585,7 +597,7 @@ const ViewAssets = () => {
                   <div className="asset-card-info">
                     <div className="asset-card-info-row">
                       <span>Year:</span>
-                      <strong>{year || "N/A"}</strong>
+                      <strong>{year}</strong>
                     </div>
                     <div className="asset-card-info-row">
                       <span>Capacity:</span>
@@ -621,81 +633,92 @@ const ViewAssets = () => {
         )}
       </section>
 
-      {/* Trees Section */}
-      <section className="asset-section">
-        <h2 className="section-heading">
-          <GiTreeGrowth className="section-icon section-icon-tree" />
-          <span>Trees</span>
-        </h2>
-        {treeList.length === 0 ? (
-          <p className="no-assets-text">No Tree assets listed yet.</p>
-        ) : (
-          <div className="asset-cards-container">
-            {treeList.map((tree) => {
-              const treeId = tree.tid || tree.TID;
-              const commonName = tree.Common_Name || tree.common_name || "Unnamed Tree";
-              const scientificName = tree.Scientific_Name || tree.scientific_name || "Unknown Species";
-              const height = tree.Height_m || tree.height_m;
-              const location = tree.Location || tree.location;
-              const year = tree.Planting_Year || tree.planting_year;
-              const status = assetStatuses[treeId] || "Pending";
+     {/* Trees Section - ✅ FIXED */}
+<section className="asset-section">
+  <h2 className="section-heading">
+    <GiTreeGrowth className="section-icon section-icon-tree" />
+    <span>Trees</span>
+  </h2>
+  {treeList.length === 0 ? (
+    <p className="no-assets-text">No Tree assets listed yet.</p>
+  ) : (
+    <div className="asset-cards-container">
+      {treeList.map((tree) => {
+        const treeId = tree.tid || tree.TID;
+        
+        // ✅ FIXED: Use correct lowercase field names from backend
+        const commonName = tree.treename || tree.TreeName || tree.common_name || tree.Common_Name || "Unnamed Tree";
+        const scientificName = tree.botanicalname || tree.BotanicalName || tree.scientific_name || tree.Scientific_Name || "Unknown Species";
+        
+        // ✅ FIXED: Height is stored in cm, convert to meters for display
+        const heightCm = tree.height || tree.Height || tree.height_m || tree.Height_m;
+        const heightM = heightCm ? (heightCm / 100).toFixed(2) : null;
+        
+        const location = tree.location || tree.Location || "Unknown";
+        
+        // ✅ FIXED: Extract year from plantingdate (DATE field)
+        const plantingDate = tree.plantingdate || tree.PlantingDate || tree.planting_date || tree.Planting_Date;
+        const year = plantingDate ? new Date(plantingDate).getFullYear() : "N/A";
+        
+        const status = assetStatuses[treeId] || tree.status || "pending";
 
-              return (
-                <div key={treeId} className="asset-card">
-                  <div className="asset-card-header">
-                    <div className="asset-card-status">
-                      <span 
-                        className="asset-card-dot" 
-                        style={{ backgroundColor: getStatusColor(status) }}
-                      ></span>
-                      <span className="asset-card-status-text">{getStatusText(status)}</span>
-                    </div>
-                    <span className="asset-card-tag asset-card-tag-tree">Tree</span>
-                  </div>
+        return (
+          <div key={treeId} className="asset-card">
+            <div className="asset-card-header">
+              <div className="asset-card-status">
+                <span 
+                  className="asset-card-dot" 
+                  style={{ backgroundColor: getStatusColor(status) }}
+                ></span>
+                <span className="asset-card-status-text">{getStatusText(status)}</span>
+              </div>
+              <span className="asset-card-tag asset-card-tag-tree">Tree</span>
+            </div>
 
-                  <div className="asset-card-title-section">
-                    <h2 className="asset-card-title">{commonName}</h2>
-                    <p className="asset-card-subtitle">{scientificName}</p>
-                  </div>
+            <div className="asset-card-title-section">
+              <h2 className="asset-card-title">{commonName}</h2>
+              <p className="asset-card-subtitle">{scientificName}</p>
+            </div>
 
-                  <div className="asset-card-info">
-                    <div className="asset-card-info-row">
-                      <span>Year:</span>
-                      <strong>{year || "N/A"}</strong>
-                    </div>
-                    <div className="asset-card-info-row">
-                      <span>Height:</span>
-                      <strong className="asset-card-highlight-tree">
-                        {height ? `${height} m` : "N/A"}
-                      </strong>
-                    </div>
-                    <div className="asset-card-info-row">
-                      <span>Location:</span>
-                      <strong>{location || "N/A"}</strong>
-                    </div>
-                  </div>
+            <div className="asset-card-info">
+              <div className="asset-card-info-row">
+                <span>Planted:</span>
+                <strong>{year}</strong>
+              </div>
+              <div className="asset-card-info-row">
+                <span>Height:</span>
+                <strong className="asset-card-highlight-tree">
+                  {heightM ? `${heightM} m` : "N/A"}
+                </strong>
+              </div>
+              <div className="asset-card-info-row">
+                <span>Location:</span>
+                <strong>{location}</strong>
+              </div>
+            </div>
 
-                  <div className="asset-card-actions">
-                    <button 
-                      className="asset-card-btn asset-card-btn-outline"
-                      onClick={() => openModal("View Details", tree, "Tree")}
-                    >
-                      View
-                    </button>
-                    <button 
-                      className="asset-card-btn asset-card-btn-primary-tree"
-                      disabled
-                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="asset-card-actions">
+              <button 
+                className="asset-card-btn asset-card-btn-outline"
+                onClick={() => openModal("View Details", tree, "Tree")}
+              >
+                View
+              </button>
+              <button 
+                className="asset-card-btn asset-card-btn-primary-tree"
+                disabled
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+              >
+                Add
+              </button>
+            </div>
           </div>
-        )}
-      </section>
+        );
+      })}
+    </div>
+  )}
+</section>
+
 
       <AnimatePresence>
         {modalContent && (
