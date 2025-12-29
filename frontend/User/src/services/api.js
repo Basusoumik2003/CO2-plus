@@ -1,51 +1,51 @@
 import axios from 'axios';
 
-// 🔥 Always force /api/v1
-const API_BASE_URL =
-  (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/v1';
+// Environment variables
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002';
+const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001';
 
-console.log('=================================');
-console.log('🔗 Environment Variables:');
-console.log('   VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('   API_BASE_URL:', API_BASE_URL);
-console.log('   MODE:', import.meta.env.MODE);
-console.log('=================================');
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-apiClient.interceptors.request.use(
-  (config) => {
-    const fullUrl = `${config.baseURL}${config.url}`;
-    console.log('📤 API Request:', config.method?.toUpperCase(), fullUrl);
-    console.log('   Payload:', config.data);
-
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Create API client instances for different services
+const createApiClient = (baseURL) => {
+  const client = axios.create({
+    baseURL,
+    timeout: 15000,
+    headers: {
+      'Content-Type': 'application/json'
     }
+  });
 
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  // Request interceptor
+  client.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
 
-apiClient.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response:', response.status, response.config.url);
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 404) {
-      console.error('🔍 Not Found - Check API endpoint:', error.config?.url);
+  // Response interceptor
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
-);
+  );
 
-export default apiClient;
+  return client;
+};
+
+// Export different clients for different services
+export const assetApiClient = createApiClient(API_BASE_URL);
+export const authApiClient = createApiClient(AUTH_SERVICE_URL);
+export const notificationApiClient = createApiClient(NOTIFICATION_SERVICE_URL);
+
+// Default export for backward compatibility
+export default assetApiClient;
