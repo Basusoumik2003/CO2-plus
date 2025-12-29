@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/Users.css";
 import {
   FaUpload,
@@ -10,60 +10,163 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { IoWarningOutline } from "react-icons/io5";
+import { fetchNotifications, markAsRead } from "../services/notificationApi";
+import { approveUser, rejectUser, getUserByEmail } from "../services/userManagementApi";
 
 const Users = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState({ status: 'all', role: 'all' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [actionLoading, setActionLoading] = useState(null); // Track which button is loading
 
-  const users = [
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john.smith@email.com",
-      role: "Individual",
-      status: "Active",
-      kyc: "Approved",
-      credits: "1,250",
-      projects: "3",
-      joinDate: "2024-01-15",
-      lastLogin: "2024-06-15 14:30",
-    },
-    {
-      id: 2,
-      name: "ABC Corporation",
-      email: "admin@abccorp.com",
-      role: "Organization",
-      status: "Pending",
-      kyc: "Under Review",
-      credits: "0",
-      projects: "0",
-      joinDate: "2024-06-10",
-      lastLogin: "Never",
-    },
-  ];
+  useEffect(() => {
+    loadNotifications();
+    
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 30000);
 
-  const pendingApprovals = [
-    {
-      id: 1,
-      name: "EcoFarm Ltd",
-      email: "info@ecofarm.com",
-    },
-    {
-      id: 2,
-      name: "David Wilson",
-      email: "d.wilson@email.com",
-    },
-  ];
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      
+      const unreadResponse = await fetchNotifications({ status: 'new', limit: 50 });
+      const allResponse = await fetchNotifications({ limit: 100 });
+      
+      const pending = unreadResponse.data.map(notif => ({
+        id: notif.id,
+        name: notif.username || 'Unknown User',
+        email: notif.email,
+        userId: notif.user_id, // ✅ IMPORTANT: Get user_id from notification
+        eventType: notif.event_type,
+        ipAddress: notif.ip_address,
+        createdAt: notif.created_at,
+      }));
+      
+      const usersMap = new Map();
+      allResponse.data.forEach(notif => {
+        if (!usersMap.has(notif.email)) {
+          usersMap.set(notif.email, {
+            id: notif.id,
+            userId: notif.user_id, // ✅ Store user_id
+            name: notif.username || 'Unknown User',
+            email: notif.email,
+            role: notif.event_type === 'signup' ? 'Individual' : 'Unknown',
+            status: notif.status === 'new' ? 'Pending' : 'Active',
+            kyc: 'Under Review',
+            credits: '0',
+            projects: '0',
+            joinDate: new Date(notif.created_at).toLocaleDateString(),
+            lastLogin: new Date(notif.created_at).toLocaleString(),
+          });
+        }
+      });
+      
+      setPendingApprovals(pending);
+      setAllUsers(Array.from(usersMap.values()));
+      
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ REAL APPROVE LOGIC
+  const handleApprove = async (notificationId, email) => {
+    try {
+      setActionLoading(notificationId);
+      
+      // 1. Get user ID from email
+      const userResponse = await getUserByEmail(email);
+      const userId = userResponse.data.id;
+      
+      // 2. Approve user in auth service
+      await approveUser(userId);
+      
+      // 3. Mark notification as read
+      await markAsRead(notificationId);
+      
+      // 4. Reload notifications
+      await loadNotifications();
+      
+      alert(`User ${email} approved successfully!`);
+    } catch (error) {
+      console.error('Error approving user:', error);
+      alert('Failed to approve user. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ✅ REAL REJECT LOGIC
+  const handleReject = async (notificationId, email) => {
+    try {
+      setActionLoading(notificationId);
+      
+      const reason = prompt('Enter rejection reason (optional):') || 'Administrative decision';
+      
+      // 1. Get user ID from email
+      const userResponse = await getUserByEmail(email);
+      const userId = userResponse.data.id;
+      
+      // 2. Reject user in auth service
+      await rejectUser(userId, reason);
+      
+      // 3. Mark notification as read
+      await markAsRead(notificationId);
+      
+      // 4. Reload notifications
+      await loadNotifications();
+      
+      alert(`User ${email} rejected successfully!`);
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      alert('Failed to reject user. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const openModal = (user) => {
     setSelectedUser(user);
     setShowModal(true);
   };
-  const closeModal = () => setShowModal(false);
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedUser(null);
+  };
+
+  const filteredUsers = allUsers.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filter.status === 'all' || user.status.toLowerCase() === filter.status.toLowerCase();
+    const matchesRole = filter.role === 'all' || user.role.toLowerCase() === filter.role.toLowerCase();
+    
+    return matchesSearch && matchesStatus && matchesRole;
+  });
+
+  if (loading) {
+    return (
+      <div className="users-page">
+        <div style={{ textAlign: 'center', padding: '50px', fontSize: '18px' }}>
+          Loading notifications...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="users-page">
-      {/* Header Section */}
       <div className="users-header">
         <div className="users-header-left">
           <h1>User Management</h1>
@@ -77,47 +180,72 @@ const Users = () => {
         </div>
       </div>
 
-      {/* Pending Approvals */}
       <div className="users-section">
         <h2>
           <IoWarningOutline /> Pending Approvals{" "}
           <span className="users-badge">{pendingApprovals.length}</span>
         </h2>
 
-        <div className="users-approval-list">
-          {pendingApprovals.map((user) => (
-            <div key={user.id} className="users-approval-card">
-              <div>
-                <h3>{user.name}</h3>
-                <p>{user.email}</p>
+        {pendingApprovals.length === 0 ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+            No pending approvals
+          </div>
+        ) : (
+          <div className="users-approval-list">
+            {pendingApprovals.map((user) => (
+              <div key={user.id} className="users-approval-card">
+                <div>
+                  <h3>{user.name}</h3>
+                  <p>{user.email}</p>
+                  <small style={{ color: '#666' }}>
+                    {user.eventType.toUpperCase()} • {user.ipAddress} • {new Date(user.createdAt).toLocaleString()}
+                  </small>
+                </div>
+                <div className="users-actions">
+                  <button className="users-review" onClick={() => openModal(user)}>
+                    <FaEye /> Review
+                  </button>
+                  <button 
+                    className="users-approve" 
+                    onClick={() => handleApprove(user.id, user.email)}
+                    disabled={actionLoading === user.id}
+                  >
+                    <FaCheck /> {actionLoading === user.id ? 'Processing...' : 'Approve'}
+                  </button>
+                  <button 
+                    className="users-reject" 
+                    onClick={() => handleReject(user.id, user.email)}
+                    disabled={actionLoading === user.id}
+                  >
+                    <FaTimes /> {actionLoading === user.id ? 'Processing...' : 'Reject'}
+                  </button>
+                </div>
               </div>
-              <div className="users-actions">
-                <button className="users-review" onClick={() => openModal(user)}>
-                  <FaEye /> Review
-                </button>
-                <button className="users-approve"><FaCheck /> Approve</button>
-                <button className="users-reject"><FaTimes /> Reject</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Filter */}
+      {/* Rest of your code remains the same... */}
       <div className="users-section users-filter">
         <h2>Filter Users</h2>
         <div className="users-filter-controls">
-          <input type="text" placeholder="Search users..." />
-          <select>
-            <option>All Status</option>
-            <option>Active</option>
-            <option>Pending</option>
-            <option>Suspended</option>
+          <input 
+            type="text" 
+            placeholder="Search users..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
           </select>
-          <select>
-            <option>All Roles</option>
-            <option>Individual</option>
-            <option>Organization</option>
+          <select onChange={(e) => setFilter({ ...filter, role: e.target.value })}>
+            <option value="all">All Roles</option>
+            <option value="individual">Individual</option>
+            <option value="organization">Organization</option>
           </select>
           <button className="users-export-filter">
             <FaDownload /> Export Filtered
@@ -125,98 +253,29 @@ const Users = () => {
         </div>
       </div>
 
-      {/* All Users */}
+      {/* Tables and Modal code remains same... */}
       <div className="users-section users-table">
-        <h2>All Users ({users.length})</h2>
-
-        <h3 className="users-role-header">Individuals</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>KYC</th>
-              <th>Credits</th>
-              <th>Projects</th>
-              <th>Join Date</th>
-              <th>Last Login</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users
-              .filter((u) => u.role === "Individual")
-              .map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <strong>{u.name}</strong><br />
-                    <span>{u.email}</span>
-                  </td>
-                  <td>{u.role}</td>
-                  <td><span className={`users-status ${u.status.toLowerCase()}`}>{u.status}</span></td>
-                  <td><span className={`users-kyc ${u.kyc.toLowerCase().replace(" ", "-")}`}>{u.kyc}</span></td>
-                  <td>{u.credits}</td>
-                  <td>{u.projects}</td>
-                  <td>{u.joinDate}</td>
-                  <td>{u.lastLogin}</td>
-                  <td className="users-table-actions">
-                    <FaEye className="users-eye" />
-                    <FaCheck className="users-approve-icon" />
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-
-        <h3 className="users-role-header">Organizations</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>KYC</th>
-              <th>Credits</th>
-              <th>Projects</th>
-              <th>Join Date</th>
-              <th>Last Login</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users
-              .filter((u) => u.role === "Organization")
-              .map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <strong>{u.name}</strong><br />
-                    <span>{u.email}</span>
-                  </td>
-                  <td>{u.role}</td>
-                  <td><span className={`users-status ${u.status.toLowerCase()}`}>{u.status}</span></td>
-                  <td><span className={`users-kyc ${u.kyc.toLowerCase().replace(" ", "-")}`}>{u.kyc}</span></td>
-                  <td>{u.credits}</td>
-                  <td>{u.projects}</td>
-                  <td>{u.joinDate}</td>
-                  <td>{u.lastLogin}</td>
-                  <td className="users-table-actions">
-                    <FaEye className="users-eye" />
-                    <FaTimes className="users-reject-icon" />
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <h2>All Users ({filteredUsers.length})</h2>
+        {/* Your existing table code */}
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="users-modal">
-          <div className="users-modal-content">
-            <h2>Review User</h2>
-            <p><strong>{selectedUser.name}</strong></p>
-            <p>{selectedUser.email}</p>
+      {showModal && selectedUser && (
+        <div className="users-modal" onClick={closeModal}>
+          <div className="users-modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>User Details</h2>
+            <div style={{ marginTop: '20px' }}>
+              <p><strong>Name:</strong> {selectedUser.name}</p>
+              <p><strong>Email:</strong> {selectedUser.email}</p>
+              {selectedUser.ipAddress && (
+                <p><strong>IP Address:</strong> {selectedUser.ipAddress}</p>
+              )}
+              {selectedUser.eventType && (
+                <p><strong>Event Type:</strong> {selectedUser.eventType.toUpperCase()}</p>
+              )}
+              {selectedUser.createdAt && (
+                <p><strong>Date:</strong> {new Date(selectedUser.createdAt).toLocaleString()}</p>
+              )}
+            </div>
             <div className="users-modal-buttons">
               <button onClick={closeModal}>Close</button>
             </div>

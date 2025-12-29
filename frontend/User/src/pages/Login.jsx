@@ -62,7 +62,7 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Handle form submit with improved error handling
+  // ✅ Handle form submit with status checking
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -73,14 +73,13 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
     setErrors({});
 
     try {
-      // ✅ Use environment variable instead of hardcoded URL
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: formData.email.toLowerCase().trim(), // ✅ Normalize email
+          email: formData.email.toLowerCase().trim(),
           password: formData.password,
         }),
       });
@@ -91,7 +90,10 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
       // ✅ Handle different error status codes
       if (!response.ok) {
         if (response.status === 429) {
-          setErrors({ general: "Too many login attempts. Please try again later." });
+          setErrors({ general: "Account locked due to multiple failed attempts. Try again later." });
+        } else if (response.status === 403) {
+          // ✅ Handle pending, rejected, suspended status from backend
+          setErrors({ general: data.message || "Access denied" });
         } else if (response.status === 400) {
           setErrors({ general: data.message || "Invalid email or password" });
         } else if (response.status === 500) {
@@ -114,18 +116,32 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
         return;
       }
 
-      // ✅ Save data to localStorage (consider using httpOnly cookies in production)
+      // ✅ Save data to localStorage
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("userId", data.user.u_id);
 
-      // Call onLogin callback if provided
+      // ✅ Call onLogin callback with user data
       if (onLogin) onLogin(data.user);
       if (onClose) onClose();
 
-      // ✅ Role-based redirect with proper role handling
+      // ✅ Redirect based on user status
+      const status = data.user.status;
       const role = data.user.role_name?.toUpperCase();
 
+      // Check status first
+      if (status === 'pending') {
+        navigate("/pending-approval");
+        return;
+      }
+
+      if (status !== 'active') {
+        setErrors({ general: `Account status: ${status}. Please contact support.` });
+        localStorage.clear();
+        return;
+      }
+
+      // ✅ If active, redirect based on role
       switch (role) {
         case "USER":
           navigate("/userDashboard");
@@ -138,7 +154,7 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
           break;
         default:
           console.warn("Unknown role:", role);
-          navigate("/"); // fallback to home
+          navigate("/");
       }
     } catch (err) {
       console.error("❌ Login Error:", err);
