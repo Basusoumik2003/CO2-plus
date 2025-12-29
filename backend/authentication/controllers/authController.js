@@ -3,12 +3,14 @@ const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 const generateUID = require("../utils/generateUID");
 const sendOTP = require("../utils/sendOTP");
+const axios = require("axios");
 
 // ✅ Validation helpers
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME_MS = 30 * 60 * 1000; // 30 min
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:5001';
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -41,7 +43,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // ✅ CHANGED: usertable → users
+    // ✅ Check if user exists
     const userCheck = await pool.query(
       "SELECT id FROM users WHERE email=$1",
       [email.toLowerCase()]
@@ -76,32 +78,54 @@ exports.register = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // ✅ CHANGED: usertable → users
+    // ✅ Create user with 'pending' status
     const userRes = await pool.query(
-      `INSERT INTO users (username, email, password, role_id, otp_code, otp_expires_at, verified, login_attempts, lock_until)
-       VALUES ($1, $2, $3, $4, $5, $6, false, 0, NULL)
-       RETURNING id, username, email`,
+      `INSERT INTO users (username, email, password, role_id, otp_code, otp_expires_at, verified, login_attempts, lock_until, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, false, 0, NULL, 'pending', NOW(), NOW())
+       RETURNING id, username, email, status`,
       [username.trim(), email.toLowerCase(), hashed, roleId, otp, expiresAt]
     );
 
     const userId = userRes.rows[0].id;
     const u_id = generateUID("USR", userId);
     
-    // ✅ CHANGED: usertable → users
+    // Update with generated u_id
     await pool.query("UPDATE users SET u_id=$1 WHERE id=$2", [u_id, userId]);
 
     // Send OTP
     try {
       await sendOTP(email, otp);
     } catch (mailErr) {
-      // ✅ CHANGED: usertable → users
+      console.error("Send OTP Error:", mailErr);
       await pool.query("DELETE FROM users WHERE id=$1", [userId]);
       return res.status(500).json({
         message: "Failed to send OTP. Check email configuration.",
       });
     }
 
-    res.status(201).json({ message: "OTP sent. Verify your email.", email });
+    // ✅ Send signup notification event to notification service
+    try {
+      await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+        event_type: 'user.signup',
+        user: {
+          id: userId,
+          username: username,
+          email: email.toLowerCase(),
+          role_name: 'USER'
+        },
+        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        device_info: req.get('user-agent') || 'Unknown device'
+      });
+    } catch (notifError) {
+      console.error('Notification service error:', notifError.message);
+      // Don't fail the signup if notification fails
+    }
+
+    res.status(201).json({ 
+      message: "Registration successful! Please check your email to verify your account.", 
+      email,
+      note: "After email verification, your account will be pending admin approval."
+    });
   } catch (err) {
     console.error("Register Error:", err);
     res.status(500).json({ message: "Registration failed" });
@@ -126,7 +150,7 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP must be 6 digits" });
     }
 
-    // ✅ CHANGED: usertable → users
+    // Fetch user with role
     const result = await pool.query(
       `SELECT u.*, r.role_name 
        FROM users u 
@@ -162,24 +186,28 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP expired. Please register again." });
     }
 
-    // ✅ CHANGED: usertable → users
+    // Update user as verified
     await pool.query(
-      "UPDATE users SET verified=true, otp_code=NULL, otp_expires_at=NULL WHERE email=$1",
+      "UPDATE users SET verified=true, otp_code=NULL, otp_expires_at=NULL, updated_at=NOW() WHERE email=$1",
       [email.toLowerCase()]
     );
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, role: user.role_name },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
-    );
-
-    // Store token in database
-    await pool.query(
-      "INSERT INTO tokens (user_id, token, token_type, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-      [user.id, token, "ACCESS"]
-    );
+    // ✅ Send email verified notification event
+    try {
+      await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+        event_type: 'user.email.verified',
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role_name: user.role_name
+        },
+        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        device_info: req.get('user-agent') || 'Unknown device'
+      });
+    } catch (notifError) {
+      console.error('Notification service error:', notifError.message);
+    }
 
     const safeUser = {
       id: user.id,
@@ -188,12 +216,13 @@ exports.verifyOTP = async (req, res) => {
       email: user.email,
       role_name: user.role_name,
       verified: true,
+      status: user.status || 'pending',
     };
 
     res.status(200).json({ 
-      message: "Email verified successfully!", 
-      token, 
-      user: safeUser 
+      message: "Email verified successfully! You can now login. Your account is pending admin approval.", 
+      user: safeUser,
+      note: "You can login, but will have limited access until admin approves your account."
     });
   } catch (err) {
     console.error("verifyOTP Error:", err);
@@ -201,7 +230,7 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
-// ✅ LOGIN USER
+// ✅ LOGIN USER (ALLOWS PENDING USERS)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -215,7 +244,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // ✅ CHANGED: usertable → users
+    // Fetch user with role
     const userRes = await pool.query(
       `SELECT u.*, r.role_name 
        FROM users u 
@@ -242,6 +271,28 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Please verify your email first." });
     }
 
+    // ✅ ONLY BLOCK REJECTED, SUSPENDED, AND INACTIVE USERS (ALLOW PENDING)
+    if (user.status === 'rejected') {
+      return res.status(403).json({
+        message: "Your account has been rejected. Please contact support for more information.",
+        status: 'rejected'
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({
+        message: "Your account has been suspended. Please contact support.",
+        status: 'suspended'
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        message: "Your account is inactive. Please contact support to reactivate.",
+        status: 'inactive'
+      });
+    }
+
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -253,34 +304,83 @@ exports.login = async (req, res) => {
         lockUntil = new Date(Date.now() + LOCK_TIME_MS);
       }
       
-      // ✅ CHANGED: usertable → users
+      // Update user with failed attempts
       await pool.query(
-        "UPDATE users SET login_attempts=$1, lock_until=$2 WHERE id=$3",
+        "UPDATE users SET login_attempts=$1, lock_until=$2, updated_at=NOW() WHERE id=$3",
         [attempts, lockUntil, user.id]
       );
+      
+      // ✅ Send failed login notification event
+      try {
+        await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+          event_type: 'user.login.failed',
+          user: {
+            id: user.id,
+            email: email.toLowerCase()
+          },
+          ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+          device_info: req.get('user-agent') || 'Unknown device',
+          attempt_number: attempts
+        });
+      } catch (notifError) {
+        console.error('Notification service error:', notifError.message);
+      }
+      
+      // ✅ Send account locked notification if max attempts reached
+      if (lockUntil) {
+        try {
+          await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+            event_type: 'user.account.locked',
+            user: {
+              id: user.id,
+              email: email.toLowerCase()
+            },
+            ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+            device_info: req.get('user-agent') || 'Unknown device'
+          });
+        } catch (notifError) {
+          console.error('Notification service error:', notifError.message);
+        }
+      }
       
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
     // Reset attempts on successful login
-    // ✅ CHANGED: usertable → users
     await pool.query(
-      "UPDATE users SET login_attempts=0, lock_until=NULL WHERE id=$1",
+      "UPDATE users SET login_attempts=0, lock_until=NULL, updated_at=NOW() WHERE id=$1",
       [user.id]
     );
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, role: user.role_name },
+      { id: user.id, role: user.role_name, status: user.status },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
     // Store token in database
     await pool.query(
-      "INSERT INTO tokens (user_id, token, token_type, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      "INSERT INTO tokens (user_id, token, token_type, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '7 days')",
       [user.id, token, "ACCESS"]
     );
+
+    // ✅ Send successful login notification event
+    try {
+      await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+        event_type: 'user.login',
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role_name: user.role_name
+        },
+        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+        device_info: req.get('user-agent') || 'Unknown device'
+      });
+    } catch (notifError) {
+      console.error('Notification service error:', notifError.message);
+    }
 
     const safeUser = {
       id: user.id,
@@ -289,10 +389,19 @@ exports.login = async (req, res) => {
       email: user.email,
       role_name: user.role_name,
       verified: user.verified,
+      status: user.status,
     };
 
+    // ✅ Different messages based on status
+    let message = "Login successful!";
+    if (user.status === 'pending') {
+      message = "Login successful! Your account is pending admin approval.";
+    } else if (user.status === 'active') {
+      message = "Welcome back!";
+    }
+
     res.status(200).json({
-      message: "Login successful!",
+      message,
       token,
       user: safeUser,
     });

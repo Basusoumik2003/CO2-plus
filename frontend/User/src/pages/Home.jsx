@@ -28,6 +28,26 @@ const Home = ({ isAuthenticated, user }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
 
+  // ✅ Check if user is already logged in on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+    if (token && storedUser && storedUser.status) {
+      // Redirect based on user status
+      if (storedUser.status === 'pending') {
+        navigate('/pending-approval');
+      } else if (storedUser.status === 'active') {
+        // Redirect based on role
+        if (storedUser.role_name === 'ORGANIZATION' || storedUser.role === 'organization') {
+          navigate('/orgDashboard');
+        } else {
+          navigate('/userDashboard');
+        }
+      }
+    }
+  }, [navigate]);
+
   const handleGetStarted = () => {
     setShowLogin(true);
   };
@@ -35,6 +55,28 @@ const Home = ({ isAuthenticated, user }) => {
   const closeModal = () => {
     setShowLogin(false);
     setShowSignup(false);
+  };
+
+  // ✅ Updated onLogin handler to check status
+  const handleLoginSuccess = (userData) => {
+    // Save to localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+    closeModal();
+
+    // Redirect based on status
+    if (userData.status === 'pending') {
+      navigate('/pending-approval');
+    } else if (userData.status === 'active') {
+      // Redirect based on role
+      if (userData.role_name === 'ORGANIZATION' || userData.role === 'organization') {
+        navigate('/orgDashboard');
+      } else {
+        navigate('/userDashboard');
+      }
+    } else {
+      // Handle other statuses (rejected, suspended, inactive)
+      alert(`Account status: ${userData.status}. Please contact support.`);
+    }
   };
 
   return (
@@ -49,8 +91,12 @@ const Home = ({ isAuthenticated, user }) => {
                 environmental consciousness.
               </p>
               <div className="home-hero-buttons">
-                <button className="home-btn home-btn-white" onClick={handleGetStarted}>Get Started</button>
-                <Link to="/about" className="home-btn home-btn-white">Learn More</Link>
+                <button className="home-btn home-btn-white" onClick={handleGetStarted}>
+                  Get Started
+                </button>
+                <Link to="/about" className="home-btn home-btn-white">
+                  Learn More
+                </Link>
               </div>
             </div>
 
@@ -96,11 +142,7 @@ const Home = ({ isAuthenticated, user }) => {
       {showLogin && (
         <Login
           onClose={closeModal}
-          onLogin={(userData) => {
-            localStorage.setItem('user', JSON.stringify(userData));
-            closeModal();
-            navigate(userData.role === 'organization' ? '/orgDashboard' : '/userDashboard');
-          }}
+          onLogin={handleLoginSuccess}  
           onSwitchToSignup={() => {
             setShowLogin(false);
             setShowSignup(true);

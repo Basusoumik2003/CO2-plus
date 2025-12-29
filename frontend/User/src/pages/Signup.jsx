@@ -89,7 +89,6 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
     setError({});
 
     try {
-      // ✅ Use environment variable instead of hardcoded URL
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,10 +116,12 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
         return;
       }
 
-      // ✅ Success - show OTP screen
+      // ✅ Success - show OTP screen with pending info
       setTempEmail(formData.email.toLowerCase().trim());
       setShowOTP(true);
-      setError({}); // Clear any errors
+      setError({ 
+        success: "OTP sent! After verification, your account will be pending admin approval." 
+      });
     } catch (err) {
       console.error("❌ Signup Error:", err);
 
@@ -137,7 +138,7 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
     }
   };
 
-  // ✅ Step 2: Verify OTP with improved validation
+  // ✅ Step 2: Verify OTP with status handling
   const handleVerifyOtp = async () => {
     // Validate OTP
     if (!otp.trim()) {
@@ -154,7 +155,6 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
     setError({});
 
     try {
-      // ✅ Use environment variable instead of hardcoded URL
       const response = await fetch(`${API_URL}/api/auth/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,39 +181,33 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
       }
 
       // ✅ Validate response data
-      if (!data.token || !data.user) {
+      if (!data.user) {
         setError({ general: "Verification failed. Missing user data." });
         return;
       }
 
-      // ✅ Save token & user info to localStorage
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userId", data.user.u_id);
-
-      // ✅ Role-based navigation with better role handling
-      const role = data.user.role_name?.toUpperCase();
-
-      switch (role) {
-        case "ORGANIZATION":
-          localStorage.setItem("organization", JSON.stringify(data.user));
-          navigate("/orgDashboard");
-          break;
-        case "USER":
-          localStorage.setItem("user", JSON.stringify(data.user));
-          navigate("/userDashboard");
-          break;
-        case "ADMIN":
-          localStorage.setItem("user", JSON.stringify(data.user));
-          navigate("/adminDashboard");
-          break;
-        default:
-          console.warn("Unknown role:", role);
-          localStorage.setItem("user", JSON.stringify(data.user));
-          navigate("/");
-      }
-
+      // ✅ Save user info to localStorage
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Token will be generated after login, not after verification
       // Close modal if callback provided
       if (onClose) onClose();
+
+      // ✅ Show success message and redirect to login
+      alert(
+        "✅ Email verified successfully!\n\n" +
+        "Your account is pending admin approval.\n" +
+        "You can login, but will have limited access until approved.\n\n" +
+        "Please login to continue."
+      );
+
+      // Switch to login modal
+      if (onSwitchToLogin) {
+        onSwitchToLogin();
+      } else {
+        navigate("/");
+      }
+
     } catch (err) {
       console.error("❌ OTP Verification Error:", err);
 
@@ -408,6 +402,13 @@ const Signup = ({ onClose, onSwitchToLogin }) => {
             <p>
               Enter the 6-digit OTP sent to <b>{tempEmail}</b>
             </p>
+
+            {/* ✅ Info about pending approval */}
+            <div className="info-box">
+              <p className="info-text">
+                ℹ️ After verification, you can login but your account will be pending admin approval.
+              </p>
+            </div>
 
             <div className="form-group">
               <input
