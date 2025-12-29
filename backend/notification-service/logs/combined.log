@@ -48,3 +48,13 @@
 {"level":"warn","message":"Failed login attempt for: arman@gmail.com (Attempt: 2)","service":"notification-service","timestamp":"2025-12-24 14:11:21"}
 {"level":"info","message":"Processing event: user.login.failed","service":"notification-service","timestamp":"2025-12-24 14:12:52","user":"arman@gmail.com"}
 {"level":"warn","message":"Failed login attempt for: arman@gmail.com (Attempt: 3)","service":"notification-service","timestamp":"2025-12-24 14:12:52"}
+{"level":"info","message":"\n        ================================\n        🚀 Notification Service Started\n        ================================\n        Service: notification-service\n        Port: 5001\n        Environment: development\n        Database: localhost:5432/gocarbonpositive\n        CORS: Enabled for http://localhost:5174\n        ================================\n      ","service":"notification-service","timestamp":"2025-12-29 11:21:26"}
+{"level":"info","message":"Processing event: user.signup","service":"notification-service","timestamp":"2025-12-29 11:30:20","user":"bob@gmail.com"}
+{"level":"info","message":"Signup notification created for user: bob@gmail.com","service":"notification-service","timestamp":"2025-12-29 11:30:21"}
+{"level":"info","message":"Processing event: user.email.verified","service":"notification-service","timestamp":"2025-12-29 11:30:48","user":"bob@gmail.com"}
+{"level":"info","message":"Email verified for user: bob@gmail.com","service":"notification-service","timestamp":"2025-12-29 11:30:48"}
+{"level":"info","message":"Processing event: user.login","service":"notification-service","timestamp":"2025-12-29 11:31:10","user":"bob@gmail.com"}
+{"level":"info","message":"Login notification created for user: bob@gmail.com","service":"notification-service","timestamp":"2025-12-29 11:31:10"}
+{"level":"info","message":"Processing event: user.login","service":"notification-service","timestamp":"2025-12-29 11:35:35","user":"bob@gmail.com"}
+{"level":"info","message":"Login notification created for user: bob@gmail.com","service":"notification-service","timestamp":"2025-12-29 11:35:35"}
+{"level":"info","message":"\n        ================================\n        🚀 Notification Service Started\n        ================================\n        Service: notification-service\n        Port: 5001\n        Environment: development\n        Database: localhost:5432/gocarbonpositive\n        CORS: Enabled for http://localhost:5174\n        ================================\n      ","service":"notification-service","timestamp":"2025-12-29 11:49:53"}
