@@ -5,7 +5,7 @@ import { RxCross1 } from "react-icons/rx";
 
 const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
   // ✅ Use environment variable for API URL
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
   
   const [formData, setFormData] = useState({
     email: "",

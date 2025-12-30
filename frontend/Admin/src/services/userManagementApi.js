@@ -1,63 +1,26 @@
-import axios from 'axios';
+import authClient from '../api/authClient';
 
-const AUTH_API_URL = 'http://localhost:5000/api'; // Your auth service URL
+// ✅ GET ALL USERS (Admin table)
+export const fetchAllUsers = () =>
+  authClient.get('/api/users')
+    .then(res => res.data);
 
-// Create axios instance
-const api = axios.create({
-  baseURL: AUTH_API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// ✅ APPROVE USER
+export const approveUser = (userId) =>
+  authClient.patch(`/api/users/${userId}/approve`)
+    .then(res => res.data);
 
-/**
- * Approve a user - Update user status to active
- */
-export const approveUser = async (userId) => {
-  try {
-    const response = await api.patch(`/users/${userId}/approve`);
-    return response.data;
-  } catch (error) {
-    console.error('Error approving user:', error);
-    throw error;
-  }
-};
+// ✅ REJECT USER
+export const rejectUser = (userId, reason = 'Administrative decision') =>
+  authClient.patch(`/api/users/${userId}/reject`, { reason })
+    .then(res => res.data);
 
-/**
- * Reject a user - Update user status to rejected/suspended
- */
-export const rejectUser = async (userId, reason = 'Administrative decision') => {
-  try {
-    const response = await api.patch(`/users/${userId}/reject`, { reason });
-    return response.data;
-  } catch (error) {
-    console.error('Error rejecting user:', error);
-    throw error;
-  }
-};
+// ✅ GET USER BY EMAIL
+export const getUserByEmail = (email) =>
+  authClient.get(`/api/users/email/${email}`)
+    .then(res => res.data);
 
-/**
- * Get user details by email
- */
-export const getUserByEmail = async (email) => {
-  try {
-    const response = await api.get(`/users/email/${email}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    throw error;
-  }
-};
-
-/**
- * Update user status
- */
-export const updateUserStatus = async (userId, status) => {
-  try {
-    const response = await api.patch(`/users/${userId}/status`, { status });
-    return response.data;
-  } catch (error) {
-    console.error('Error updating user status:', error);
-    throw error;
-  }
-};
+// ✅ UPDATE STATUS (optional)
+export const updateUserStatus = (userId, status) =>
+  authClient.patch(`/api/users/${userId}/status`, { status })
+    .then(res => res.data);

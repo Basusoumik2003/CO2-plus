@@ -43,7 +43,7 @@ const App = () => {
 
   const RedirectToAdmin = () => {
     useEffect(() => {
-      window.location.href = "http://localhost:5174";
+      window.location.href = "http://localhost:3001";
     }, []);
     return <p>Redirecting to Admin Dashboard...</p>;
   };
