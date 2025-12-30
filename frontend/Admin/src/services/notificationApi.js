@@ -1,124 +1,32 @@
-import apiClient from './apiClient';
+import notificationClient from '../api/notificationClient';
 
-const NOTIFICATION_API_URL = '/api/notifications';
+const BASE = '/api/notifications';
 
-/**
- * Fetch all notifications with filters
- * @param {Object} filters - Filter parameters (status, event_type, user_id, page, limit)
- * @returns {Promise<Object>} Notifications data with pagination
- */
-export const fetchNotifications = async (filters = {}) => {
-  try {
-    const response = await apiClient.get(NOTIFICATION_API_URL, {
-      params: filters
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    throw error;
-  }
-};
+export const fetchNotifications = (filters = {}) =>
+  notificationClient.get(BASE, { params: filters }).then(res => res.data);
 
-/**
- * Fetch unread notifications count
- * @returns {Promise<Object>} Unread notifications list
- */
-export const fetchUnreadCount = async () => {
-  try {
-    const response = await apiClient.get(`${NOTIFICATION_API_URL}/unread`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching unread count:', error);
-    throw error;
-  }
-};
+export const fetchUnreadCount = () =>
+  notificationClient.get(`${BASE}/unread`).then(res => res.data);
 
-/**
- * Fetch notification statistics
- * @returns {Promise<Object>} Statistics data
- */
-export const fetchNotificationStats = async () => {
-  try {
-    const response = await apiClient.get(`${NOTIFICATION_API_URL}/stats`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    throw error;
-  }
-};
+export const fetchNotificationStats = () =>
+  notificationClient.get(`${BASE}/stats`).then(res => res.data);
 
-/**
- * Get notifications for specific user
- * @param {number} userId - User ID
- * @param {Object} options - Pagination options
- * @returns {Promise<Object>} User notifications
- */
-export const fetchUserNotifications = async (userId, options = {}) => {
-  try {
-    const response = await apiClient.get(`${NOTIFICATION_API_URL}/user/${userId}`, {
-      params: options
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user notifications:', error);
-    throw error;
-  }
-};
+export const fetchUserNotifications = (userId, options = {}) =>
+  notificationClient
+    .get(`${BASE}/user/${userId}`, { params: options })
+    .then(res => res.data);
 
-/**
- * Mark single notification as read
- * @param {number} notificationId - Notification ID
- * @returns {Promise<Object>} Updated notification
- */
-export const markAsRead = async (notificationId) => {
-  try {
-    const response = await apiClient.patch(
-      `${NOTIFICATION_API_URL}/${notificationId}/read`
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error marking as read:', error);
-    throw error;
-  }
-};
+export const markAsRead = (notificationId) =>
+  notificationClient
+    .patch(`${BASE}/${notificationId}/read`)
+    .then(res => res.data);
 
-/**
- * Mark all notifications as read
- * @returns {Promise<Object>} Updated notifications
- */
-export const markAllAsRead = async () => {
-  try {
-    const response = await apiClient.patch(`${NOTIFICATION_API_URL}/read/all`);
-    return response.data;
-  } catch (error) {
-    console.error('Error marking all as read:', error);
-    throw error;
-  }
-};
+export const markAllAsRead = () =>
+  notificationClient
+    .patch(`${BASE}/read/all`)
+    .then(res => res.data);
 
-/**
- * Delete notification (Admin only)
- * @param {number} notificationId - Notification ID
- * @returns {Promise<Object>} Deleted notification
- */
-export const deleteNotification = async (notificationId) => {
-  try {
-    const response = await apiClient.delete(
-      `${NOTIFICATION_API_URL}/${notificationId}`
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting notification:', error);
-    throw error;
-  }
-};
-
-export default {
-  fetchNotifications,
-  fetchUnreadCount,
-  fetchNotificationStats,
-  fetchUserNotifications,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification
-};
+export const deleteNotification = (notificationId) =>
+  notificationClient
+    .delete(`${BASE}/${notificationId}`)
+    .then(res => res.data);
