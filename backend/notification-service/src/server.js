@@ -17,7 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS configuration - HARDCODED FOR TESTING
 app.use(cors({
-  origin: ['http://localhost:5174', 'http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5174', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -66,7 +66,7 @@ const startServer = async () => {
         Port: ${PORT}
         Environment: ${config.nodeEnv}
         Database: ${config.db.host}:${config.db.port}/${config.db.name}
-        CORS: Enabled for http://localhost:5174
+        CORS: Enabled for http://localhost:3001
         ================================
       `);
     });

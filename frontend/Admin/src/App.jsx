@@ -1,8 +1,13 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import AdminHeader from "./components/AdminHeader";
-import AdminNavbar from "./components/AdminNavbar"; 
-import AdminDashboard from "./pages/AdminDashboard";  
+import AdminNavbar from "./components/AdminNavbar";
+import AdminDashboard from "./pages/AdminDashboard";
 import Overview from "./pages/Overview";
 import Users from "./pages/Users";
 import Support from "./pages/Support";
@@ -12,42 +17,59 @@ import Analytics from "./pages/Analytics";
 import CareerManagement from "./pages/CareerManagement";
 import CaseStudyManagement from "./pages/CaseStudyManagement";
 
-
-
-
-
 const App = () => {
   return (
     <Router>
-      {/* Header stays at the top */}
-      <AdminHeader />
+      <Routes>
+        {/* Redirect /login to home page since admin logs in from there */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
 
-      {/* Small space between header and navbar */}
-      <div style={{ marginTop: "5px" }}></div>
+        {/* Protected Routes with Layout */}
+        <Route
+          path="/*"
+          element={
+            <div>
+              {/* Header stays at the top */}
+              <AdminHeader />
 
-      {/* Navbar below the header */}
-      <AdminNavbar />
+              {/* Small space between header and navbar */}
+              <div style={{ marginTop: "5px" }}></div>
 
-      {/* Page Content */}
-      <main className="page-content">
-        <Routes>
-          {/* Dashboard Home */}
-          <Route path="/" element={<AdminDashboard />} />
+              {/* Navbar below the header */}
+              <AdminNavbar />
 
-          {/* Overview page route */}
-          <Route path="/overview" element={<Overview />} />
+              {/* Page Content */}
+              <main className="page-content">
+                <Routes>
+                  {/* Dashboard Home */}
+                  <Route path="/" element={<AdminDashboard />} />
 
-          {/* Other routes */}
-          <Route path="/users" element={<Users />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/security" element={<Security />} />
-          <Route path="/configuration" element={<Configuration />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/case-study-management" element={<CaseStudyManagement />} />
-          <Route path="/career-management" element={<CareerManagement />} />
+                  {/* Overview page route */}
+                  <Route path="/overview" element={<Overview />} />
 
-        </Routes>
-      </main>
+                  {/* Other routes */}
+                  <Route path="/users" element={<Users />} />
+                  <Route path="/support" element={<Support />} />
+                  <Route path="/security" element={<Security />} />
+                  <Route path="/configuration" element={<Configuration />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route
+                    path="/case-study-management"
+                    element={<CaseStudyManagement />}
+                  />
+                  <Route
+                    path="/career-management"
+                    element={<CareerManagement />}
+                  />
+
+                  {/* Catch-all - redirect to dashboard */}
+                  <Route path="*" element={<AdminDashboard />} />
+                </Routes>
+              </main>
+            </div>
+          }
+        />
+      </Routes>
     </Router>
   );
 };

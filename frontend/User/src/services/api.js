@@ -1,51 +1,158 @@
-import axios from 'axios';
+import { authApiClient, assetApiClient, notificationApiClient } from './apiClient';
 
-// Environment variables
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002';
-const NOTIFICATION_SERVICE_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001';
-
-// Create API client instances for different services
-const createApiClient = (baseURL) => {
-  const client = axios.create({
-    baseURL,
-    timeout: 15000,
-    headers: {
-      'Content-Type': 'application/json'
+/**
+ * Authentication Service APIs
+ */
+export const authService = {
+  login: async (email, password) => {
+    try {
+      const response = await authApiClient.post('/api/auth/login', {
+        email,
+        password
+      });
+      console.log('🟢 Login Response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Login Error:', error);
+      throw error;
     }
-  });
+  },
 
-  // Request interceptor
-  client.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-
-  // Response interceptor
-  client.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
+  register: async (email, password, name) => {
+    try {
+      const response = await authApiClient.post('/api/auth/register', {
+        email,
+        password,
+        name
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Register Error:', error);
+      throw error;
     }
-  );
+  },
 
-  return client;
+  logout: async () => {
+    try {
+      const response = await authApiClient.post('/api/auth/logout');
+      localStorage.removeItem('authToken');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Logout Error:', error);
+      // Clear token anyway
+      localStorage.removeItem('authToken');
+      throw error;
+    }
+  },
+
+  refreshToken: async () => {
+    try {
+      const response = await authApiClient.post('/api/auth/refresh');
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('❌ Token Refresh Error:', error);
+      throw error;
+    }
+  }
 };
 
-// Export different clients for different services
-export const assetApiClient = createApiClient(API_BASE_URL);
-export const authApiClient = createApiClient(AUTH_SERVICE_URL);
-export const notificationApiClient = createApiClient(NOTIFICATION_SERVICE_URL);
+/**
+ * Asset Service APIs
+ */
+export const assetService = {
+  getAllAssetStatuses: async (userId) => {
+    try {
+      const response = await assetApiClient.get(`/api/assets/user/${userId}/status`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get Asset Statuses Error:', error);
+      throw error;
+    }
+  },
 
-// Default export for backward compatibility
-export default assetApiClient;
+  getHealthCheck: async () => {
+    try {
+      const response = await assetApiClient.get('/health');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Health Check Error:', error);
+      throw error;
+    }
+  },
+
+  createAsset: async (assetData) => {
+    try {
+      const response = await assetApiClient.post('/api/assets', assetData);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Create Asset Error:', error);
+      throw error;
+    }
+  },
+
+  updateAsset: async (assetId, assetData) => {
+    try {
+      const response = await assetApiClient.put(`/api/assets/${assetId}`, assetData);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Update Asset Error:', error);
+      throw error;
+    }
+  }
+};
+
+/**
+ * Notification Service APIs
+ */
+export const notificationService = {
+  getNotifications: async (filters = {}) => {
+    try {
+      const response = await notificationApiClient.get('/api/notifications', {
+        params: filters
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get Notifications Error:', error);
+      throw error;
+    }
+  },
+
+  getUnreadCount: async () => {
+    try {
+      const response = await notificationApiClient.get('/api/notifications/unread');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get Unread Count Error:', error);
+      throw error;
+    }
+  },
+
+  markAsRead: async (notificationId) => {
+    try {
+      const response = await notificationApiClient.patch(`/api/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Mark As Read Error:', error);
+      throw error;
+    }
+  },
+
+  markAllAsRead: async () => {
+    try {
+      const response = await notificationApiClient.patch('/api/notifications/read/all');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Mark All As Read Error:', error);
+      throw error;
+    }
+  }
+};
+
+export default {
+  authService,
+  assetService,
+  notificationService
+};
