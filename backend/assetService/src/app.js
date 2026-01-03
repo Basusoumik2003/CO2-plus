@@ -29,7 +29,8 @@ const app = express();
 app.use(configureHelmet());
 app.use(configureCORS());
 
-// Body parsing
+// Body parsing - express.json() automatically skips multipart/form-data
+// But we'll be explicit to avoid any issues
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
