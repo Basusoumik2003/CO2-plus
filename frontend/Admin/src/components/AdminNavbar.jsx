@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   IoAnalyticsSharp,
   IoSettingsSharp,
@@ -12,8 +12,9 @@ import { BsShieldCheck } from "react-icons/bs";
 import "../styles/AdminNavbar.css";
 
 const AdminNavbar = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview");
 
   const navItems = [
     {
@@ -43,6 +44,12 @@ const AdminNavbar = () => {
       path: "/security",
     },
   ];
+
+  // Sync active tab with current route so it stays on Users after navigating
+  useEffect(() => {
+    const path = location.pathname.split("/")[1] || "overview";
+    setActiveTab(path);
+  }, [location.pathname]);
 
   return (
     <nav className="admin-navbar">

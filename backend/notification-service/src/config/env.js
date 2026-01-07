@@ -14,7 +14,10 @@ const config = {
   },
 
   auth: {
-    jwtSecret: process.env.JWT_SECRET,
+    // Use same secret as auth service; provide sane dev fallback to avoid 401 loops
+    jwtSecret: process.env.JWT_SECRET
+      || process.env.AUTH_JWT_SECRET
+      || 'dev-jwt-secret',
     serviceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:5000',
   },
 

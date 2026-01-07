@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Prefer env override; fall back to local dev default
+const baseURL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002';
+
 const authClient = axios.create({
-  baseURL: import.meta.env.VITE_AUTH_SERVICE_URL,
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

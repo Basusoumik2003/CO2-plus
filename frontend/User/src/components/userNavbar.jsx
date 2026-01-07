@@ -141,7 +141,7 @@ const Navbar = ({ onAuthChange }) => {
             alt="CarbonCredit Logo"
             className="user-logo-icon"
           />
-          <span className="user-logo-text">CarbonCredit</span>
+          <span className="user-logo-text">Carbon Positive</span>
         </div>
 
         {sidebarOpen && (

@@ -42,6 +42,7 @@ const allowedOrigins = [
   "http://localhost:5173",     // Main frontend
   "http://localhost:5174",     // Admin dashboard
   "http://localhost:3000",     // Alternative dev port
+  "http://localhost:3001",     // Admin app dev port (Vite)
   "https://www.gocarbonpositive.com",
   process.env.FRONTEND_URL,    // From .env
 ].filter(Boolean);
@@ -68,6 +69,14 @@ app.use(
 // ==================== BODY PARSING ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ==================== CACHE CONTROL ====================
+// Disable HTTP caching to avoid 304/no-body responses causing empty data in Admin app
+app.disable('etag');
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // ==================== RATE LIMITING ====================
 // Global rate limiter
@@ -99,6 +108,7 @@ app.use(globalLimiter);
 // ==================== ROUTES ====================
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
+const { verifyToken } = require("./middlewares/authorize");
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
@@ -109,6 +119,14 @@ app.get("/health", (req, res) => {
     status: "success",
     service: "authentication-service",
     timestamp: new Date().toISOString()
+  });
+});
+
+// Test auth route
+app.get("/api/test-auth", verifyToken, (req, res) => {
+  res.status(200).json({
+    status: "success",
+    user: req.user,
   });
 });
 
