@@ -2,7 +2,9 @@ const { query } = require('../config/database');
 const { NOTIFICATION_STATUS } = require('../config/constants');
 
 class Notification {
-  // Create notification event
+
+  /* ================= CREATE ================= */
+
   static async create(data) {
     const {
       event_type,
@@ -18,32 +20,59 @@ class Notification {
     const queryText = `
       INSERT INTO notifications 
       (event_type, user_id, username, email, user_role, ip_address, device_info, status, metadata, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
     const result = await query(queryText, [
       event_type,
       user_id || null,
-      username,
-      email,
-      user_role,
-      ip_address,
-      device_info,
+      username || null,
+      email || null,
+      user_role || null,
+      ip_address || null,
+      device_info || null,
       NOTIFICATION_STATUS.NEW,
       JSON.stringify(metadata || {})
     ]);
 
+    return result.rows[0] || null;
+  }
+
+  /* ================= ADMIN MAIN VIEW (🔥 NEW) ================= */
+
+  // 👉 Ye function frontend ko ALL REQUIRED DATA dega
+  static async getAdminUserView() {
+    const queryText = `
+      SELECT 
+        n.id              AS notification_id,
+        n.event_type,
+        n.username,
+        n.email,
+        n.user_role,
+        n.ip_address,
+        n.device_info,
+        n.status          AS notification_status,
+        n.created_at,
+
+        u.id              AS user_id,
+        u.status          AS user_status
+      FROM notifications n
+      LEFT JOIN users u ON u.id = n.user_id
+      ORDER BY n.created_at DESC
+    `;
+
+    const result = await query(queryText);
     return result.rows;
   }
 
-  // Get all notifications with pagination
+  /* ================= GET ALL ================= */
+
   static async getAll(page = 1, limit = 20, filters = {}) {
     const offset = (page - 1) * limit;
     let whereClause = 'WHERE 1=1';
     const params = [];
 
-    // Add filters
     if (filters.event_type) {
       params.push(filters.event_type);
       whereClause += ` AND event_type = $${params.length}`;
@@ -59,14 +88,13 @@ class Notification {
       whereClause += ` AND user_id = $${params.length}`;
     }
 
-    // Count total
-    const countQuery = `SELECT COUNT(*) FROM notifications ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as count FROM notifications ${whereClause}`;
     const countResult = await query(countQuery, params);
-    const total = parseInt(countResult.rows.count);
+    const total = parseInt(countResult.rows[0]?.count || 0);
 
-    // Fetch notifications
     params.push(limit);
     params.push(offset);
+
     const dataQuery = `
       SELECT * FROM notifications
       ${whereClause}
@@ -85,7 +113,8 @@ class Notification {
     };
   }
 
-  // Get unread notifications
+  /* ================= UNREAD ================= */
+
   static async getUnread(limit = 50) {
     const queryText = `
       SELECT * FROM notifications
@@ -98,13 +127,14 @@ class Notification {
     return result.rows;
   }
 
-  // Get notifications for specific user
+  /* ================= BY USER ================= */
+
   static async getByUserId(userId, page = 1, limit = 20) {
     const offset = (page - 1) * limit;
 
-    const countQuery = 'SELECT COUNT(*) FROM notifications WHERE user_id = $1';
+    const countQuery = 'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1';
     const countResult = await query(countQuery, [userId]);
-    const total = parseInt(countResult.rows.count);
+    const total = parseInt(countResult.rows[0]?.count || 0);
 
     const dataQuery = `
       SELECT * FROM notifications
@@ -124,14 +154,16 @@ class Notification {
     };
   }
 
-  // Get single notification
+  /* ================= SINGLE ================= */
+
   static async getById(notificationId) {
     const queryText = 'SELECT * FROM notifications WHERE id = $1';
     const result = await query(queryText, [notificationId]);
-    return result.rows || null;
+    return result.rows[0] || null;
   }
 
-  // Mark notification as read
+  /* ================= READ ================= */
+
   static async markAsRead(notificationId) {
     const queryText = `
       UPDATE notifications
@@ -141,10 +173,9 @@ class Notification {
     `;
 
     const result = await query(queryText, [NOTIFICATION_STATUS.READ, notificationId]);
-    return result.rows;
+    return result.rows[0] || null;
   }
 
-  // Mark all unread as read
   static async markAllAsRead() {
     const queryText = `
       UPDATE notifications
@@ -157,17 +188,20 @@ class Notification {
       NOTIFICATION_STATUS.READ,
       NOTIFICATION_STATUS.NEW
     ]);
+
     return result.rows;
   }
 
-  // Delete notification
+  /* ================= DELETE ================= */
+
   static async delete(notificationId) {
     const queryText = 'DELETE FROM notifications WHERE id = $1 RETURNING *';
     const result = await query(queryText, [notificationId]);
-    return result.rows;
+    return result.rows[0] || null;
   }
 
-  // Get statistics
+  /* ================= STATS (FIXED) ================= */
+
   static async getStats(hoursBack = 24) {
     const queryText = `
       SELECT 
@@ -178,7 +212,7 @@ class Notification {
         COUNT(CASE WHEN event_type = $4 THEN 1 END) as failed_attempts,
         COUNT(CASE WHEN created_at > NOW() - INTERVAL '1 hour' THEN 1 END) as last_hour
       FROM notifications
-      WHERE created_at > NOW() - INTERVAL '1 hour' * $5
+      WHERE created_at > NOW() - ($5 || ' hours')::INTERVAL
     `;
 
     const result = await query(queryText, [
@@ -189,7 +223,7 @@ class Notification {
       hoursBack
     ]);
 
-    return result.rows;
+    return result.rows[0] || {};
   }
 }
 
