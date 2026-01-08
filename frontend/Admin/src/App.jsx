@@ -16,7 +16,7 @@ import Configuration from "./pages/Configuration";
 import Analytics from "./pages/Analytics";
 import CareerManagement from "./pages/CareerManagement";
 import CaseStudyManagement from "./pages/CaseStudyManagement";
-
+import AssetManagement from "./pages/AssetManagement";
 const App = () => {
   return (
     <ProtectedRoute>
@@ -46,6 +46,7 @@ const App = () => {
               <Route path="/security" element={<Security />} />
               <Route path="/configuration" element={<Configuration />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/asset-management" element={<AssetManagement />} />
               <Route
                 path="/case-study-management"
                 element={<CaseStudyManagement />}
