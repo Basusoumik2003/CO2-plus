@@ -102,7 +102,7 @@ const AdminHeader = () => {
                   <li onClick={() => handleOptionClick("/analytics")}>
                     <MdAnalytics className="menu-icon" /> Analytics
                   </li>
-                  <li onClick={() => handleOptionClick("/assets")}>
+                  <li onClick={() => handleOptionClick("/asset-management")}>
                     <MdWorkspaces className="menu-icon" /> Asset Management
                   </li>
                   <li onClick={() => handleOptionClick("/marketplace")}>
