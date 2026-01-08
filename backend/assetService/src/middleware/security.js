@@ -47,6 +47,12 @@ const helmetConfig = helmet({
  * Request sanitization
  */
 const sanitizeRequest = (req, res, next) => {
+  // Skip sanitization for multipart/form-data (file uploads)
+  // Multer will handle these requests
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    return next();
+  }
+
   // Remove any null bytes from strings
   const sanitize = (obj) => {
     if (typeof obj === "string") {
@@ -60,7 +66,10 @@ const sanitizeRequest = (req, res, next) => {
     return obj;
   };
 
-  req.body = sanitize(req.body);
+  // Only sanitize if body exists and is not a file upload
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitize(req.body);
+  }
   req.params = sanitize(req.params);
   req.query = sanitize(req.query);
 

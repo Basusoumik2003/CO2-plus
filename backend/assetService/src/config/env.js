@@ -1,4 +1,6 @@
-require('dotenv').config();
+const path = require('path');
+// Load .env from root directory (backend/assetService/.env)
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const config = {
   nodeEnv: process.env.NODE_ENV || 'development',

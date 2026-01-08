@@ -6,21 +6,37 @@ const auth = require('../middleware/auth');
 const logger = require('../utils/logger');
 const { MESSAGES, ROLES } = require('../config/constants');
 
-/**
- * Receive events from auth service
- * POST /api/notifications/event
- * ✅ No auth required (internal service-to-service communication)
- */
+/* =========================================================
+   RECEIVE EVENTS (Internal)
+========================================================= */
 router.post('/event', async (req, res) => {
   try {
     const eventData = req.body;
+
+    if (!eventData) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Event data is required'
+      });
+    }
+
+    logger.info('📥 Received event:', { 
+      event_type: eventData.event_type,
+      user_email: eventData?.user?.email 
+    });
+
     await EventService.processEvent(eventData);
+
     res.status(200).json({
       status: 'success',
       message: 'Event processed successfully'
     });
   } catch (error) {
-    logger.error('Error processing event:', error);
+    logger.error('❌ Error processing event:', {
+      error: error.message,
+      stack: error.stack
+    });
+
     res.status(500).json({
       status: 'error',
       message: MESSAGES.ERROR,
@@ -29,21 +45,47 @@ router.post('/event', async (req, res) => {
   }
 });
 
-/**
- * Get all notifications (Admin only)
- * GET /api/notifications
- * ✅ FIXED: Auth middleware added
- */
-router.get('/', auth, async (req, res) => {
+/* =========================================================
+   🔥 NEW: ADMIN USER EVENTS (FOR USERS PAGE)
+   GET /api/notifications/admin/user-events
+========================================================= */
+router.get('/admin/user-events', auth, async (req, res) => {
   try {
-    // ✅ FIXED: Re-enabled admin check
     if (req.user.role !== ROLES.ADMIN) {
       return res.status(403).json({
         status: 'error',
         message: MESSAGES.UNAUTHORIZED
       });
     }
-    
+
+    const data = await Notification.getAdminUserView();
+
+    res.status(200).json({
+      status: 'success',
+      data
+    });
+  } catch (error) {
+    logger.error('❌ Error fetching admin user events:', error);
+    res.status(500).json({
+      status: 'error',
+      message: MESSAGES.ERROR,
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   GET ALL NOTIFICATIONS (ADMIN)
+========================================================= */
+router.get('/', auth, async (req, res) => {
+  try {
+    if (req.user.role !== ROLES.ADMIN) {
+      return res.status(403).json({
+        status: 'error',
+        message: MESSAGES.UNAUTHORIZED
+      });
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const filters = {
@@ -51,8 +93,9 @@ router.get('/', auth, async (req, res) => {
       status: req.query.status,
       user_id: req.query.user_id
     };
-    
+
     const result = await Notification.getAll(page, limit, filters);
+
     res.status(200).json({
       status: 'success',
       message: MESSAGES.NOTIFICATIONS_FETCHED,
@@ -74,19 +117,14 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-/**
- * Get unread notifications (User-specific)
- * GET /api/notifications/unread
- * ✅ FIXED: Auth middleware added
- */
+/* =========================================================
+   GET UNREAD
+========================================================= */
 router.get('/unread', auth, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
-    const userId = req.user.id;
-    
-    // Get unread notifications for current user
     const notifications = await Notification.getUnread(limit);
-    
+
     res.status(200).json({
       status: 'success',
       unread_count: notifications.length,
@@ -102,26 +140,24 @@ router.get('/unread', auth, async (req, res) => {
   }
 });
 
-/**
- * Get notifications for specific user
- * GET /api/notifications/user/:userId
- * ✅ Auth required to prevent unauthorized access
- */
+/* =========================================================
+   GET BY USER
+========================================================= */
 router.get('/user/:userId', auth, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    
-    // User can only view their own notifications, admins can view all
+
     if (req.user.id !== userId && req.user.role !== ROLES.ADMIN) {
       return res.status(403).json({
         status: 'error',
         message: MESSAGES.UNAUTHORIZED
       });
     }
-    
+
     const result = await Notification.getByUserId(userId, page, limit);
+
     res.status(200).json({
       status: 'success',
       message: MESSAGES.NOTIFICATIONS_FETCHED,
@@ -143,22 +179,20 @@ router.get('/user/:userId', auth, async (req, res) => {
   }
 });
 
-/**
- * Get notification statistics (Admin only)
- * GET /api/notifications/stats
- * ✅ FIXED: Auth middleware added + admin check re-enabled
- */
+/* =========================================================
+   STATS
+========================================================= */
 router.get('/stats', auth, async (req, res) => {
   try {
-    // ✅ FIXED: Re-enabled admin check
     if (req.user.role !== ROLES.ADMIN) {
       return res.status(403).json({
         status: 'error',
         message: MESSAGES.UNAUTHORIZED
       });
     }
-    
+
     const stats = await Notification.getStats();
+
     res.status(200).json({
       status: 'success',
       data: stats
@@ -173,23 +207,21 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-/**
- * Mark notification as read
- * PATCH /api/notifications/:id/read
- * ✅ FIXED: Auth middleware added
- */
+/* =========================================================
+   MARK READ
+========================================================= */
 router.patch('/:id/read', auth, async (req, res) => {
   try {
     const notificationId = parseInt(req.params.id);
     const notification = await Notification.markAsRead(notificationId);
-    
+
     if (!notification) {
       return res.status(404).json({
         status: 'error',
         message: MESSAGES.NOT_FOUND
       });
     }
-    
+
     res.status(200).json({
       status: 'success',
       message: MESSAGES.NOTIFICATION_MARKED_READ,
@@ -205,19 +237,17 @@ router.patch('/:id/read', auth, async (req, res) => {
   }
 });
 
-/**
- * Mark all notifications as read
- * PATCH /api/notifications/read/all
- * ✅ FIXED: Auth middleware added
- */
+/* =========================================================
+   MARK ALL READ
+========================================================= */
 router.patch('/read/all', auth, async (req, res) => {
   try {
     const notifications = await Notification.markAllAsRead();
+
     res.status(200).json({
       status: 'success',
       message: MESSAGES.ALL_MARKED_READ,
-      count: notifications.length,
-      data: notifications
+      count: notifications.length
     });
   } catch (error) {
     logger.error('Error marking all notifications as read:', error);
@@ -229,11 +259,9 @@ router.patch('/read/all', auth, async (req, res) => {
   }
 });
 
-/**
- * Delete notification (Admin only)
- * DELETE /api/notifications/:id
- * ✅ Auth middleware already present, verified admin check
- */
+/* =========================================================
+   DELETE (ADMIN)
+========================================================= */
 router.delete('/:id', auth, async (req, res) => {
   try {
     if (req.user.role !== ROLES.ADMIN) {
@@ -242,21 +270,20 @@ router.delete('/:id', auth, async (req, res) => {
         message: MESSAGES.UNAUTHORIZED
       });
     }
-    
+
     const notificationId = parseInt(req.params.id);
     const notification = await Notification.delete(notificationId);
-    
+
     if (!notification) {
       return res.status(404).json({
         status: 'error',
         message: MESSAGES.NOT_FOUND
       });
     }
-    
+
     res.status(200).json({
       status: 'success',
-      message: 'Notification deleted successfully',
-      data: notification
+      message: 'Notification deleted successfully'
     });
   } catch (error) {
     logger.error('Error deleting notification:', error);

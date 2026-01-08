@@ -1,28 +1,28 @@
-import apiClient from './api';
+import { assetApiClient } from './apiClient';
 
 export const solarService = {
-  getAllSolarPanels: async (userId) => {
-    const response = await apiClient.get(`/solarpanel/${userId}`);
-    return response.data;
-  },
-
-  getSolarPanel: async (userId, panelId) => {
-    const response = await apiClient.get(`/solarpanel/${userId}/${panelId}`);
-    return response.data;
-  },
-
   createSolarPanel: async (panelData) => {
-    const response = await apiClient.post('/solarpanel', panelData);
+    const response = await assetApiClient.post('/solarpanel', panelData);
     return response.data;
   },
-
-  updateSolarPanel: async (userId, panelId, panelData) => {
-    const response = await apiClient.put(`/solarpanel/${userId}/${panelId}`, panelData);
+  getAllSolarPanels: async (userId) => {
+    const response = await assetApiClient.get(`/solarpanel/${userId}`);
     return response.data;
   },
-
-  deleteSolarPanel: async (userId, panelId) => {
-    const response = await apiClient.delete(`/solarpanel/${userId}/${panelId}`);
+  getSolarPanel: async (userId, suid) => {
+    const response = await assetApiClient.get(`/solarpanel/single/${suid}`);
+    return response.data;
+  },
+  updateSolarPanel: async (suid, panelData) => {
+    const response = await assetApiClient.put(`/solarpanel/${suid}`, panelData);
+    return response.data;
+  },
+  deleteSolarPanel: async (suid) => {
+    const response = await assetApiClient.delete(`/solarpanel/${suid}`);
+    return response.data;
+  },
+  updateSolarStatus: async (suid, statusData) => {
+    const response = await assetApiClient.patch(`/solarpanel/${suid}/status`, statusData);
     return response.data;
   },
 };

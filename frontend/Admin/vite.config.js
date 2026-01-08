@@ -6,11 +6,23 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
-      '/api': {
-        target: 'http://localhost:5001',
+      // Auth service (users, auth)
+      '/api/users': {
+        target: process.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002',
         changeOrigin: true,
-        secure: false
-      }
+        secure: false,
+      },
+      '/api/auth': {
+        target: process.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Notification service
+      '/api/notifications': {
+        target: process.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+      },
     }
   },
   build: {
