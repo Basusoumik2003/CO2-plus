@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import {
   FaCarSide,
   FaTree,
@@ -12,140 +13,194 @@ import {
 
 import "../styles/AssetManagement.css";
 
+const ITEMS_PER_PAGE = 10;
+
 const AssetManagement = () => {
   const [activeSubmitterTab, setActiveSubmitterTab] = useState("individual");
   const [activeAssetFilter, setActiveAssetFilter] = useState("tree");
   const [activeWorkflowTab, setActiveWorkflowTab] = useState("pendingRequests");
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [rejectedAssets, setRejectedAssets] = useState([]);
 
-  const metrics = {
-    totalEV: 2,
-    totalTrees: 2,
-    totalSolar: 2,
-    pendingReview: 2,
+  // confirmation modal
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // "accept" | "reject"
+  const [confirmAsset, setConfirmAsset] = useState(null);
+
+  // pagination state
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingApprovalPage, setPendingApprovalPage] = useState(1);
+  const [rejectedPage, setRejectedPage] = useState(1);
+  const [approvedPage, setApprovedPage] = useState(1);
+
+  /* ================= BACKEND STATE ================= */
+  const [metrics, setMetrics] = useState({
+    totalEV: 0,
+    totalTrees: 0,
+    totalSolar: 0,
+    pendingReview: 0,
     pendingApproval: 0,
-    approved: 3,
-    rejected: 1,
-  };
+    approved: 0,
+    rejected: 0,
+  });
 
-  const workflowAssets = [
-    {
-      id: 1,
-      type: "Electric Vehicle",
-      status: "Pending Review",
-      submittedBy: "John Doe",
-      submittedOn: "08/01/2025",
-      category: "Sedan",
-      manufacturer: "Tesla",
-      model: "Model 3",
-      year: 2022,
-      energyConsumed: 75,
-      range: 300,
-      topSpeed: 180,
-      chargingTime: 8,
-    },
-    {
-      id: 2,
-      type: "Trees",
-      status: "Pending Review",
-      submittedBy: "Green Org",
-      submittedOn: "07/01/2025",
-      category: "Community Plantation",
-      manufacturer: "",
-      model: "",
-      year: 2025,
-      energyConsumed: "",
-      range: "",
-      topSpeed: "",
-      chargingTime: "",
-    },
-  ];
+  // single source of truth
+  const [workflowAssets, setWorkflowAssets] = useState([]);
+  const [approvedAssets, setApprovedAssets] = useState([]);
 
-  const approvedAssets = [
-    {
-      id: 101,
-      type: "Trees",
-      status: "Approved",
-      submittedBy: "Sarah Smith",
-      submittedOn: "04/01/2025",
-    },
-  ];
+  /* ================= LOAD DATA ================= */
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [metricsRes, workflowRes, approvedRes] = await Promise.all([
+          axios.get("/api/assets/metrics"),
+          axios.get("/api/assets/workflow"),
+          axios.get("/api/assets/approved"),
+        ]);
 
-  /* ---------- CSV EXPORT HELPERS ---------- */
+        setMetrics({
+          totalEV: Number(metricsRes.data.totalEV),
+          totalTrees: Number(metricsRes.data.totalTrees),
+          totalSolar: Number(metricsRes.data.totalSolar),
+          pendingReview: Number(metricsRes.data.pendingReview),
+          pendingApproval: Number(metricsRes.data.pendingApproval || 0),
+          approved: Number(metricsRes.data.approved),
+          rejected: Number(metricsRes.data.rejected),
+        });
 
-  const convertToCsv = (rows) => {
-    if (!rows || rows.length === 0) return "";
+        setWorkflowAssets(
+          workflowRes.data.map((a) => {
+            const assetType =
+              a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
 
-    const headers = Object.keys(rows[0]);
-    const escape = (value) => {
-      if (value === null || value === undefined) return "";
-      const str = String(value);
-      // escape quotes
-      const escaped = str.replace(/"/g, '""');
-      // wrap if contains comma, quote, or newline
-      return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+            const status =
+              a.status === "pending"
+                ? "Pending Review"
+                : a.status === "pending_approval"
+                ? "Pending Approval"
+                : a.status === "rejected"
+                ? "Rejected"
+                : "Pending Review";
+
+            return {
+              id: a.id,
+              assetType,
+              type:
+                a.type === "EV"
+                  ? "Electric Vehicle"
+                  : a.type === "TREE"
+                  ? "Trees"
+                  : "Solar Panel",
+              status,
+              submittedBy: a.u_id,
+              submittedOn: new Date(a.submitted_on).toLocaleDateString(),
+            };
+          })
+        );
+
+        setApprovedAssets(
+          approvedRes.data.map((a) => ({
+            id: a.id,
+            assetType:
+              a.type === "EV"
+                ? "ev"
+                : a.type === "TREE"
+                ? "tree"
+                : "solar",
+            type:
+              a.type === "EV"
+                ? "Electric Vehicle"
+                : a.type === "TREE"
+                ? "Trees"
+                : "Solar Panel",
+            status: "Approved",
+            submittedBy: a.u_id,
+            submittedOn: new Date(a.created_at).toLocaleDateString(),
+            submittedByType: a.submittedByType || "individual",
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load asset data", err);
+      }
     };
 
-    const csvLines = [
-      headers.join(","), // header row
-      ...rows.map((row) => headers.map((h) => escape(row[h])).join(",")),
-    ];
+    loadData();
+  }, []);
 
-    return csvLines.join("\n");
+  /* ---------- CSV EXPORT HELPERS ---------- */
+  const convertToCsv = (rows) => {
+    if (!rows || rows.length === 0) return "";
+    const headers = Object.keys(rows[0]);
+    return [
+      headers.join(","),
+      ...rows.map((r) => headers.map((h) => `"${r[h] ?? ""}"`).join(",")),
+    ].join("\n");
   };
 
   const downloadCsv = (rows, filename) => {
     const csv = convertToCsv(rows);
-    if (!csv) return;
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
-    a.setAttribute("download", filename);
-    document.body.appendChild(a);
+    a.download = filename;
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
   const handleExport = () => {
-    // combine data you want to export; here using workflow + approved assets
-    const rows = [
-      ...workflowAssets.map((a) => ({
-        id: a.id,
-        type: a.type,
-        status: a.status,
-        submittedBy: a.submittedBy,
-        submittedOn: a.submittedOn,
-        category: a.category,
-        manufacturer: a.manufacturer,
-        model: a.model,
-        year: a.year,
-        energyConsumed: a.energyConsumed,
-        range: a.range,
-        topSpeed: a.topSpeed,
-        chargingTime: a.chargingTime,
-      })),
-      ...approvedAssets.map((a) => ({
-        id: a.id,
-        type: a.type,
-        status: a.status,
-        submittedBy: a.submittedBy,
-        submittedOn: a.submittedOn,
-      })),
-    ];
-
-    downloadCsv(rows, "asset-management-export.csv");
+    downloadCsv(
+      [...workflowAssets, ...approvedAssets],
+      "asset-management-export.csv"
+    );
   };
 
   /* ---------- MODAL / WORKFLOW HANDLERS ---------- */
+  const openReviewModal = async (asset) => {
+    try {
+      const res = await axios.get(
+        `/api/assets/${asset.assetType}/${asset.id}/details`
+      );
 
-  const openReviewModal = (asset) => {
-    setSelectedAsset(asset);
-    setReviewModalOpen(true);
+      setSelectedAsset({
+        ...asset,
+
+        // EV
+        vehicleCategory: res.data.category,
+        manufacturer: res.data.manufacturers,
+        model: res.data.model,
+        purchaseYear: res.data.purchase_year,
+        energyConsumed: res.data.energy_consumed,
+        primaryChargingType: res.data.primary_charging_type,
+        range: res.data.range,
+        gridEmissionFactor: res.data.grid_emission_factor,
+        topSpeed: res.data.top_speed,
+        chargingTime: res.data.charging_time,
+        motorPower: res.data.motor_power,
+
+        // Tree
+        treeName: res.data.treename,
+        botanicalName: res.data.botanicalname,
+        plantingDate: res.data.plantingdate,
+        height: res.data.height,
+        dbh: res.data.dbh,
+        location: res.data.location,
+        createdBy: res.data.created_by,
+        treeImages: res.data.images || res.data.tree_images || [],
+
+        // Solar
+        installedCapacity: res.data.installed_capacity,
+        installationDate: res.data.installation_date,
+        energyGenerationValue: res.data.energy_generation_value,
+        solarGridEmissionFactor: res.data.grid_emission_factor,
+        inverterType: res.data.inverter_type,
+      });
+
+      setReviewModalOpen(true);
+    } catch (err) {
+      console.error("Failed to load asset details", err);
+    }
   };
 
   const closeReviewModal = () => {
@@ -153,16 +208,396 @@ const AssetManagement = () => {
     setSelectedAsset(null);
   };
 
-  const handleAccept = (assetId) => {
-    console.log("Accept asset", assetId);
-    closeReviewModal();
+  // actual backend call when confirmed
+  const handleAcceptConfirmed = async (asset) => {
+    try {
+      const res = await axios.patch(
+        `/api/assets/${asset.assetType}/${asset.id}/status`,
+        { status: "approved" }
+      );
+
+      const updated = res.data || {};
+
+      // remove from workflow list
+      setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
+
+      // construct single approved item with correct assetType
+      const approvedItem = {
+        id: updated.id ?? asset.id,
+        assetType: asset.assetType,
+        type: asset.type,
+        status: "Approved",
+        submittedBy: updated.u_id ?? asset.submittedBy,
+        submittedOn: new Date(
+          updated.created_at || updated.submitted_on || new Date()
+        ).toLocaleDateString(),
+        submittedByType: updated.submittedByType || "individual",
+      };
+
+      setApprovedAssets((prev) => [approvedItem, ...prev]);
+
+      setMetrics((prev) => ({
+        ...prev,
+        pendingReview: Math.max(prev.pendingReview - 1, 0),
+        approved: prev.approved + 1,
+      }));
+
+      closeReviewModal();
+    } catch (err) {
+      console.error("Approve failed", err);
+    }
   };
 
-  const handleReject = (assetId) => {
-    console.log("Reject asset", assetId);
-    closeReviewModal();
+  const handleRejectConfirmed = async (asset) => {
+    try {
+      await axios.patch(
+        `/api/assets/${asset.assetType}/${asset.id}/status`,
+        { status: "rejected" }
+      );
+
+      setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
+
+      setMetrics((prev) => ({
+        ...prev,
+        pendingReview: Math.max(Number(prev.pendingReview) - 1, 0),
+        rejected: Number(prev.rejected) + 1,
+      }));
+
+      closeReviewModal();
+    } catch (err) {
+      console.error("Reject failed", err);
+    }
   };
 
+  // open confirmation modal
+  const requestConfirm = (action, asset) => {
+    setConfirmAction(action); // "accept" or "reject"
+    setConfirmAsset(asset);
+    setConfirmModalOpen(true);
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModalOpen(false);
+    setConfirmAction(null);
+    setConfirmAsset(null);
+  };
+
+  const handleConfirmYes = () => {
+    if (!confirmAsset || !confirmAction) {
+      closeConfirmModal();
+      return;
+    }
+
+    if (confirmAction === "accept") {
+      handleAcceptConfirmed(confirmAsset);
+    } else if (confirmAction === "reject") {
+      handleRejectConfirmed(confirmAsset);
+    }
+
+    closeConfirmModal();
+  };
+
+  // load rejected list only when rejected tab active
+  useEffect(() => {
+    if (activeWorkflowTab !== "rejected") return;
+
+    const loadRejected = async () => {
+      const res = await axios.get("/api/assets/rejected");
+
+      setRejectedAssets(
+        res.data.map((a) => ({
+          id: a.id,
+          assetType:
+            a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
+          type:
+            a.type === "EV"
+              ? "Electric Vehicle"
+              : a.type === "TREE"
+              ? "Trees"
+              : "Solar Panel",
+          status: "Rejected",
+          submittedBy: a.u_id,
+          submittedOn: new Date(a.created_at).toLocaleDateString(),
+        }))
+      );
+    };
+
+    loadRejected();
+  }, [activeWorkflowTab]);
+
+  useEffect(() => {
+    if (activeWorkflowTab !== "rejected") {
+      setRejectedAssets([]);
+    }
+  }, [activeWorkflowTab]);
+
+  // derived workflow lists
+  const pendingRequestsList = workflowAssets.filter(
+    (a) => a.status === "Pending Review"
+  );
+  const pendingApprovalList = workflowAssets.filter(
+    (a) => a.status === "Pending Approval"
+  );
+
+  // pagination helpers
+  const paginate = (list, page) => {
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    return list.slice(start, start + ITEMS_PER_PAGE);
+  };
+
+  const pendingPaged = paginate(pendingRequestsList, pendingPage);
+  const pendingApprovalPaged = paginate(
+    pendingApprovalList,
+    pendingApprovalPage
+  );
+  const rejectedPaged = paginate(rejectedAssets, rejectedPage);
+
+  // approved assets – derive by submitter + type filter at render time
+  const approvedBySubmitter =
+    activeSubmitterTab === "individual"
+      ? approvedAssets.filter((a) => a.submittedByType !== "organisation")
+      : approvedAssets.filter((a) => a.submittedByType === "organisation");
+
+  const approvedFiltered = approvedBySubmitter.filter(
+    (a) => a.assetType === activeAssetFilter
+  );
+  const approvedPaged = paginate(approvedFiltered, approvedPage);
+  const hasApprovedForSelection = approvedFiltered.length > 0;
+
+  const totalPages = (len) => Math.max(1, Math.ceil(len / ITEMS_PER_PAGE));
+
+  const renderPagination = (page, setPage, totalItems) => {
+    const pages = totalPages(totalItems);
+    if (pages <= 1) return null;
+
+    return (
+      <div className="am26-pagination">
+        <button
+          className="am26-pagination-btn"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+        <span className="am26-pagination-info">
+          Page {page} of {pages}
+        </span>
+        <button
+          className="am26-pagination-btn"
+          disabled={page === pages}
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
+  /* --------- RENDER HELPERS FOR MODAL DETAILS ---------- */
+
+  const renderEVDetails = (asset) => (
+    <>
+      <div className="am26-modal-section-title">Electric Vehicle Details</div>
+      <div className="am26-modal-details-grid am26-modal-details-grid-wide">
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Vehicle Category</div>
+          <div className="am26-modal-detail-value">
+            {asset.vehicleCategory || "-"}
+          </div>
+        </div>
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Manufacturer</div>
+          <div className="am26-modal-detail-value">
+            {asset.manufacturer || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Model</div>
+          <div className="am26-modal-detail-value">{asset.model || "-"}</div>
+        </div>
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Purchase Year</div>
+          <div className="am26-modal-detail-value">
+            {asset.purchaseYear || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">
+            Energy consumed (kWh)
+          </div>
+          <div className="am26-modal-detail-value">
+            {asset.energyConsumed ?? "-"}
+          </div>
+        </div>
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Primary Charging Type</div>
+          <div className="am26-modal-detail-value">
+            {asset.primaryChargingType || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Range (km)</div>
+          <div className="am26-modal-detail-value">{asset.range ?? "-"}</div>
+        </div>
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Grid Emission Factor</div>
+          <div className="am26-modal-detail-value">
+            {asset.gridEmissionFactor ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Top Speed (km/h)</div>
+          <div className="am26-modal-detail-value">
+            {asset.topSpeed ?? "-"}
+          </div>
+        </div>
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">
+            Charging time (hours)
+          </div>
+          <div className="am26-modal-detail-value">
+            {asset.chargingTime ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Motor power (HP)</div>
+          <div className="am26-modal-detail-value">
+            {asset.motorPower ?? "-"}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderSolarDetails = (asset) => (
+    <>
+      <div className="am26-modal-section-title">Solar Panel Details</div>
+      <div className="am26-modal-details-grid am26-modal-details-grid-wide">
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Installed Capacity (kW)</div>
+          <div className="am26-modal-detail-value">
+            {asset.installedCapacity ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Installation Date</div>
+          <div className="am26-modal-detail-value">
+            {asset.installationDate || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">
+            Energy Generation Value
+          </div>
+          <div className="am26-modal-detail-value">
+            {asset.energyGenerationValue ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Grid Emission Factor</div>
+          <div className="am26-modal-detail-value">
+            {asset.solarGridEmissionFactor ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Inverter Type</div>
+          <div className="am26-modal-detail-value">
+            {asset.inverterType || "-"}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderTreeDetails = (asset) => (
+    <>
+      <div className="am26-modal-section-title">Tree Details</div>
+      <div className="am26-modal-details-grid am26-modal-details-grid-wide">
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Tree Name</div>
+          <div className="am26-modal-detail-value">
+            {asset.treeName || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Botanical Name</div>
+          <div className="am26-modal-detail-value">
+            {asset.botanicalName || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Planting Date</div>
+          <div className="am26-modal-detail-value">
+            {asset.plantingDate || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Height (m)</div>
+          <div className="am26-modal-detail-value">
+            {asset.height ?? "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">DBH (cm)</div>
+          <div className="am26-modal-detail-value">{asset.dbh ?? "-"}</div>
+        </div>
+
+        <div className="am26-modal-detail am26-modal-detail-span-2">
+          <div className="am26-modal-detail-label">Location</div>
+          <div className="am26-modal-detail-value">
+            {asset.location || "-"}
+          </div>
+        </div>
+
+        <div className="am26-modal-detail">
+          <div className="am26-modal-detail-label">Created By</div>
+          <div className="am26-modal-detail-value">
+            {asset.createdBy || "-"}
+          </div>
+        </div>
+      </div>
+
+      {asset.treeImages && asset.treeImages.length > 0 && (
+        <>
+          <div className="am26-modal-section-title">Tree Images</div>
+          <div className="am26-tree-images-grid">
+            {asset.treeImages.map((src, idx) => (
+              <div key={idx} className="am26-tree-image-wrap">
+                <img
+                  src={src}
+                  alt={`Tree ${idx + 1}`}
+                  className="am26-tree-image"
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const renderAssetSpecificDetails = (asset) => {
+    if (!asset) return null;
+    if (asset.assetType === "ev") return renderEVDetails(asset);
+    if (asset.assetType === "solar") return renderSolarDetails(asset);
+    if (asset.assetType === "tree") return renderTreeDetails(asset);
+    return null;
+  };
+
+  /* ================= UI ================= */
   return (
     <div className="am26-page">
       {/* Top heading + export */}
@@ -181,21 +616,21 @@ const AssetManagement = () => {
 
       {/* Summary cards */}
       <div className="am26-summary-row">
-        <div className="am26-summary-card am26-summary-blue">
+        <div className="am26-summary-card am26-summary-blue am26-card-hover">
           <div className="am26-summary-label">Total Electric Vehicles</div>
           <div className="am26-summary-bottom">
             <span className="am26-summary-value">{metrics.totalEV}</span>
             <FaCarSide className="am26-summary-icon am26-icon-ev" />
           </div>
         </div>
-        <div className="am26-summary-card am26-summary-green">
+        <div className="am26-summary-card am26-summary-green am26-card-hover">
           <div className="am26-summary-label">Total Trees Planted</div>
           <div className="am26-summary-bottom">
             <span className="am26-summary-value">{metrics.totalTrees}</span>
             <FaTree className="am26-summary-icon am26-icon-tree" />
           </div>
         </div>
-        <div className="am26-summary-card am26-summary-orange">
+        <div className="am26-summary-card am26-summary-orange am26-card-hover">
           <div className="am26-summary-label">Total Solar Panels</div>
           <div className="am26-summary-bottom">
             <span className="am26-summary-value">{metrics.totalSolar}</span>
@@ -206,14 +641,14 @@ const AssetManagement = () => {
 
       {/* Status cards row */}
       <div className="am26-status-row">
-        <div className="am26-status-card">
+        <div className="am26-status-card am26-card-hover">
           <div className="am26-status-label">Pending Review</div>
           <div className="am26-status-bottom">
             <span className="am26-status-value">{metrics.pendingReview}</span>
             <FaClock className="am26-status-icon am26-icon-pending" />
           </div>
         </div>
-        <div className="am26-status-card">
+        <div className="am26-status-card am26-card-hover">
           <div className="am26-status-label">Pending Approval</div>
           <div className="am26-status-bottom">
             <span className="am26-status-value">
@@ -222,14 +657,14 @@ const AssetManagement = () => {
             <FaClockRotateLeft className="am26-status-icon am26-icon-pending-approval" />
           </div>
         </div>
-        <div className="am26-status-card">
+        <div className="am26-status-card am26-card-hover">
           <div className="am26-status-label">Approved</div>
           <div className="am26-status-bottom">
             <span className="am26-status-value">{metrics.approved}</span>
             <FaCircleCheck className="am26-status-icon am26-icon-approved" />
           </div>
         </div>
-        <div className="am26-status-card">
+        <div className="am26-status-card am26-card-hover">
           <div className="am26-status-label">Rejected</div>
           <div className="am26-status-bottom">
             <span className="am26-status-value">{metrics.rejected}</span>
@@ -239,7 +674,7 @@ const AssetManagement = () => {
       </div>
 
       {/* Asset Review Workflow */}
-      <section className="am26-review-section">
+      <section className="am26-review-section am26-card-hover">
         <div className="am26-review-header">
           <h2 className="am26-section-title">Asset Review Workflow</h2>
           <p className="am26-section-subtitle">
@@ -247,102 +682,227 @@ const AssetManagement = () => {
           </p>
         </div>
 
-        <div className="am26-tabs-row">
+        {/* segmented toggle for workflow tabs */}
+        <div className="am26-segmented-tabs">
           <button
-            className={
+            className={`am26-segmented-tab am26-segmented-pending ${
               activeWorkflowTab === "pendingRequests"
-                ? "am26-tab am26-tab-active"
-                : "am26-tab"
-            }
-            onClick={() => setActiveWorkflowTab("pendingRequests")}
+                ? "am26-segmented-tab-active"
+                : ""
+            }`}
+            onClick={() => {
+              setActiveWorkflowTab("pendingRequests");
+              setPendingPage(1);
+            }}
           >
-            Pending Requests ({workflowAssets.length})
+            Pending Requests ({pendingRequestsList.length})
           </button>
           <button
-            className={
+            className={`am26-segmented-tab am26-segmented-approval ${
               activeWorkflowTab === "pendingApproval"
-                ? "am26-tab am26-tab-active"
-                : "am26-tab"
-            }
-            onClick={() => setActiveWorkflowTab("pendingApproval")}
+                ? "am26-segmented-tab-active"
+                : ""
+            }`}
+            onClick={() => {
+              setActiveWorkflowTab("pendingApproval");
+              setPendingApprovalPage(1);
+            }}
           >
-            Pending Approval
+            Pending Approval ({pendingApprovalList.length})
           </button>
           <button
-            className={
+            className={`am26-segmented-tab am26-segmented-rejected ${
               activeWorkflowTab === "rejected"
-                ? "am26-tab am26-tab-active"
-                : "am26-tab"
-            }
-            onClick={() => setActiveWorkflowTab("rejected")}
+                ? "am26-segmented-tab-active"
+                : ""
+            }`}
+            onClick={() => {
+              setActiveWorkflowTab("rejected");
+              setRejectedPage(1);
+            }}
           >
             Rejected ({metrics.rejected})
           </button>
         </div>
 
-        <div className="am26-search-row">
-          <input
-            className="am26-search-input"
-            type="text"
-            placeholder="Search assets by name or type..."
-          />
-        </div>
-
         <div className="am26-workflow-list">
-          {workflowAssets.map((asset) => (
-            <div key={asset.id} className="am26-workflow-item">
-              <div className="am26-workflow-main">
-                <div className="am26-workflow-icon-wrap">
-                  {asset.type === "Electric Vehicle" && (
-                    <FaCarSide className="am26-workflow-icon am26-icon-ev" />
-                  )}
-                  {asset.type === "Trees" && (
-                    <FaTree className="am26-workflow-icon am26-icon-tree" />
-                  )}
-                  {asset.type === "Solar Panel" && (
-                    <FaSolarPanel className="am26-workflow-icon am26-icon-solar" />
-                  )}
-                </div>
-                <div>
-                  <div className="am26-workflow-title">{asset.type}</div>
-                  <div className="am26-workflow-meta">
-                    <span>Submitted by {asset.submittedBy}</span>
-                    <span className="am26-workflow-dot">•</span>
-                    <span>{asset.submittedOn}</span>
-                    <span className="am26-workflow-status am26-pill-pending">
-                      {asset.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
+          {/* Pending Requests */}
+          {activeWorkflowTab === "pendingRequests" &&
+            (pendingPaged.length > 0 ? (
+              <>
+                {pendingPaged.map((asset) => (
+                  <div
+                    key={`pending-${asset.id}`}
+                    className="am26-workflow-item am26-card-hover am26-workflow-pending"
+                  >
+                    <div className="am26-workflow-main">
+                      <div className="am26-workflow-icon-wrap">
+                        {asset.type === "Electric Vehicle" && (
+                          <FaCarSide className="am26-workflow-icon am26-icon-ev" />
+                        )}
+                        {asset.type === "Trees" && (
+                          <FaTree className="am26-workflow-icon am26-icon-tree" />
+                        )}
+                        {asset.type === "Solar Panel" && (
+                          <FaSolarPanel className="am26-workflow-icon am26-icon-solar" />
+                        )}
+                      </div>
 
-              <div className="am26-workflow-actions">
-                <button
-                  className="am26-button am26-btn-primary"
-                  onClick={() => handleAccept(asset.id)}
-                >
-                  Accept
-                </button>
-                <button
-                  className="am26-button am26-btn-outline"
-                  onClick={() => openReviewModal(asset)}
-                >
-                  Review
-                </button>
-                <button
-                  className="am26-button am26-btn-danger"
-                  onClick={() => handleReject(asset.id)}
-                >
-                  Reject
-                </button>
+                      <div>
+                        <div className="am26-workflow-title">
+                          {asset.type}
+                        </div>
+                        <div className="am26-workflow-meta">
+                          <span>Submitted by {asset.submittedBy}</span>
+                          <span className="am26-workflow-dot">•</span>
+                          <span>{asset.submittedOn}</span>
+                          <span className="am26-workflow-status am26-pill-pending">
+                            Pending Review
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="am26-workflow-actions">
+                      <button
+                        className="am26-button am26-btn-outline"
+                        onClick={() => openReviewModal(asset)}
+                      >
+                        Review
+                      </button>
+
+                      <button
+                        className="am26-button am26-btn-primary"
+                        onClick={() => requestConfirm("accept", asset)}
+                      >
+                        Accept
+                      </button>
+
+                      <button
+                        className="am26-button am26-btn-danger"
+                        onClick={() => requestConfirm("reject", asset)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {renderPagination(
+                  pendingPage,
+                  setPendingPage,
+                  pendingRequestsList.length
+                )}
+              </>
+            ) : (
+              <div className="am26-empty-text">
+                No pending requests available.
               </div>
-            </div>
-          ))}
+            ))}
+
+          {/* Pending Approval */}
+          {activeWorkflowTab === "pendingApproval" &&
+            (pendingApprovalPaged.length > 0 ? (
+              <>
+                {pendingApprovalPaged.map((asset) => (
+                  <div
+                    key={`approval-${asset.id}`}
+                    className="am26-workflow-item am26-card-hover am26-workflow-approval"
+                  >
+                    <div className="am26-workflow-main">
+                      <div className="am26-workflow-icon-wrap">
+                        {asset.type === "Electric Vehicle" && (
+                          <FaCarSide className="am26-workflow-icon am26-icon-ev" />
+                        )}
+                        {asset.type === "Trees" && (
+                          <FaTree className="am26-workflow-icon am26-icon-tree" />
+                        )}
+                        {asset.type === "Solar Panel" && (
+                          <FaSolarPanel className="am26-workflow-icon am26-icon-solar" />
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="am26-workflow-title">
+                          {asset.type}
+                        </div>
+                        <div className="am26-workflow-meta">
+                          <span>Submitted by {asset.submittedBy}</span>
+                          <span className="am26-workflow-dot">•</span>
+                          <span>{asset.submittedOn}</span>
+                          <span className="am26-workflow-status am26-pill-pending-approval">
+                            Pending Approval
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {renderPagination(
+                  pendingApprovalPage,
+                  setPendingApprovalPage,
+                  pendingApprovalList.length
+                )}
+              </>
+            ) : (
+              <div className="am26-empty-text">
+                No assets in pending approval.
+              </div>
+            ))}
+
+          {/* Rejected */}
+          {activeWorkflowTab === "rejected" &&
+            (rejectedPaged.length > 0 ? (
+              <>
+                {rejectedPaged.map((asset) => (
+                  <div
+                    key={`rejected-${asset.id}`}
+                    className="am26-workflow-item am26-card-hover am26-workflow-rejected"
+                  >
+                    <div className="am26-workflow-main">
+                      <div className="am26-workflow-icon-wrap">
+                        {asset.type === "Electric Vehicle" && (
+                          <FaCarSide className="am26-workflow-icon am26-icon-ev" />
+                        )}
+                        {asset.type === "Trees" && (
+                          <FaTree className="am26-workflow-icon am26-icon-tree" />
+                        )}
+                        {asset.type === "Solar Panel" && (
+                          <FaSolarPanel className="am26-workflow-icon am26-icon-solar" />
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="am26-workflow-title">
+                          {asset.type}
+                        </div>
+                        <div className="am26-workflow-meta">
+                          <span>Submitted by {asset.submittedBy}</span>
+                          <span className="am26-workflow-dot">•</span>
+                          <span>{asset.submittedOn}</span>
+                          <span className="am26-workflow-status am26-pill-rejected">
+                            Rejected
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {renderPagination(
+                  rejectedPage,
+                  setRejectedPage,
+                  rejectedAssets.length
+                )}
+              </>
+            ) : (
+              <div className="am26-empty-text">
+                No rejected assets found.
+              </div>
+            ))}
         </div>
       </section>
 
       {/* Asset Management list */}
-      <section className="am26-asset-section">
+      <section className="am26-asset-section am26-card-hover">
         <div className="am26-asset-header-row">
           <h2 className="am26-section-title">Asset Management</h2>
           <p className="am26-section-subtitle">
@@ -350,6 +910,7 @@ const AssetManagement = () => {
           </p>
         </div>
 
+        {/* submitter segmented control */}
         <div className="am26-submitters-tabs">
           <button
             className={
@@ -357,7 +918,10 @@ const AssetManagement = () => {
                 ? "am26-submitters-tab am26-submitters-tab-active"
                 : "am26-submitters-tab"
             }
-            onClick={() => setActiveSubmitterTab("individual")}
+            onClick={() => {
+              setActiveSubmitterTab("individual");
+              setApprovedPage(1);
+            }}
           >
             Individual Assets
           </button>
@@ -367,84 +931,98 @@ const AssetManagement = () => {
                 ? "am26-submitters-tab am26-submitters-tab-active"
                 : "am26-submitters-tab"
             }
-            onClick={() => setActiveSubmitterTab("organisation")}
+            onClick={() => {
+              setActiveSubmitterTab("organisation");
+              setApprovedPage(1);
+            }}
           >
             Organisation Assets
           </button>
         </div>
 
-        <div className="am26-filter-card">
-          <div className="am26-filter-title">Filters</div>
-          <div className="am26-filter-content">
-            <input
-              type="text"
-              className="am26-filter-search"
-              placeholder="Search by asset name or submitter..."
-            />
-            <select className="am26-filter-status">
-              <option>All Status</option>
-              <option>Approved</option>
-              <option>Pending Review</option>
-              <option>Rejected</option>
-            </select>
-          </div>
-
-          <div className="am26-asset-type-tabs">
-            <button
-              className={
-                activeAssetFilter === "ev"
-                  ? "am26-asset-type-tab am26-asset-type-active"
-                  : "am26-asset-type-tab"
-              }
-              onClick={() => setActiveAssetFilter("ev")}
-            >
-              <FaCarSide className="am26-asset-type-icon am26-icon-ev" />
-              EV
-            </button>
-            <button
-              className={
-                activeAssetFilter === "solar"
-                  ? "am26-asset-type-tab am26-asset-type-active"
-                  : "am26-asset-type-tab"
-              }
-              onClick={() => setActiveAssetFilter("solar")}
-            >
-              <FaSolarPanel className="am26-asset-type-icon am26-icon-solar" />
-              Solar Panel
-            </button>
-            <button
-              className={
-                activeAssetFilter === "tree"
-                  ? "am26-asset-type-tab am26-asset-type-active"
-                  : "am26-asset-type-tab"
-              }
-              onClick={() => setActiveAssetFilter("tree")}
-            >
-              <FaTree className="am26-asset-type-icon am26-icon-tree" />
-              Tree
-            </button>
-          </div>
+        {/* asset-type segmented control */}
+        <div className="am26-segmented-tabs am26-asset-type-tabs">
+          <button
+            className={`am26-segmented-tab am26-asset-type-tab am26-asset-ev ${
+              activeAssetFilter === "ev" ? "am26-segmented-tab-active" : ""
+            }`}
+            onClick={() => {
+              setActiveAssetFilter("ev");
+              setApprovedPage(1);
+            }}
+          >
+            <FaCarSide className="am26-asset-type-icon am26-icon-ev" />
+            EV
+          </button>
+          <button
+            className={`am26-segmented-tab am26-asset-type-tab am26-asset-solar ${
+              activeAssetFilter === "solar" ? "am26-segmented-tab-active" : ""
+            }`}
+            onClick={() => {
+              setActiveAssetFilter("solar");
+              setApprovedPage(1);
+            }}
+          >
+            <FaSolarPanel className="am26-asset-type-icon am26-icon-solar" />
+            Solar Panel
+          </button>
+          <button
+            className={`am26-segmented-tab am26-asset-type-tab am26-asset-tree ${
+              activeAssetFilter === "tree" ? "am26-segmented-tab-active" : ""
+            }`}
+            onClick={() => {
+              setActiveAssetFilter("tree");
+              setApprovedPage(1);
+            }}
+          >
+            <FaTree className="am26-asset-type-icon am26-icon-tree" />
+            Tree
+          </button>
         </div>
 
         <div className="am26-approved-list">
-          {approvedAssets.map((asset) => (
-            <div key={asset.id} className="am26-approved-item">
-              <div className="am26-approved-left">
-                <div className="am26-approved-icon-wrap">
-                  <FaTree className="am26-approved-icon am26-icon-tree" />
-                </div>
-                <div>
-                  <div className="am26-approved-title">{asset.type}</div>
-                  <div className="am26-approved-meta">
-                    <span>Submitted by {asset.submittedBy}</span>
-                    <span className="am26-workflow-dot">•</span>
-                    <span>{asset.submittedOn}</span>
+          {hasApprovedForSelection ? (
+            <>
+              {approvedPaged.map((asset) => (
+                <div
+                  key={asset.id}
+                  className="am26-approved-item am26-card-hover"
+                >
+                  <div className="am26-approved-left">
+                    <div className="am26-approved-icon-wrap">
+                      {asset.assetType === "ev" && (
+                        <FaCarSide className="am26-approved-icon am26-icon-ev" />
+                      )}
+                      {asset.assetType === "solar" && (
+                        <FaSolarPanel className="am26-approved-icon am26-icon-solar" />
+                      )}
+                      {asset.assetType === "tree" && (
+                        <FaTree className="am26-approved-icon am26-icon-tree" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="am26-approved-title">{asset.type}</div>
+                      <div className="am26-approved-meta">
+                        <span>Submitted by {asset.submittedBy}</span>
+                        <span className="am26-workflow-dot">•</span>
+                        <span>{asset.submittedOn}</span>
+                      </div>
+                    </div>
                   </div>
+                  <span className="am26-pill-approved">Approved</span>
                 </div>
-              </div>
-              <span className="am26-pill-approved">Approved</span>
+              ))}
+              {renderPagination(
+                approvedPage,
+                setApprovedPage,
+                approvedFiltered.length
+              )}
+            </>
+          ) : (
+            <div className="am26-empty-text">
+              No asset is registered for this selection.
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -459,13 +1037,13 @@ const AssetManagement = () => {
           >
             <div className="am26-modal-header">
               <div className="am26-modal-title-wrap">
-                {selectedAsset.type === "Electric Vehicle" && (
+                {selectedAsset.assetType === "ev" && (
                   <FaCarSide className="am26-modal-icon am26-icon-ev" />
                 )}
-                {selectedAsset.type === "Trees" && (
+                {selectedAsset.assetType === "tree" && (
                   <FaTree className="am26-modal-icon am26-icon-tree" />
                 )}
-                {selectedAsset.type === "Solar Panel" && (
+                {selectedAsset.assetType === "solar" && (
                   <FaSolarPanel className="am26-modal-icon am26-icon-solar" />
                 )}
                 <div>
@@ -507,70 +1085,73 @@ const AssetManagement = () => {
               </div>
             </div>
 
-            <div className="am26-modal-section-title">Asset Details</div>
-            <div className="am26-modal-details-grid">
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Category</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.category || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Manufacturer</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.manufacturer || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Model</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.model || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Year</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.year || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Energy Consumed</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.energyConsumed || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Range</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.range || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Top Speed</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.topSpeed || "-"}
-                </div>
-              </div>
-              <div className="am26-modal-detail">
-                <div className="am26-modal-detail-label">Charging Time</div>
-                <div className="am26-modal-detail-value">
-                  {selectedAsset.chargingTime || "-"}
-                </div>
-              </div>
-            </div>
+            {renderAssetSpecificDetails(selectedAsset)}
 
             <div className="am26-modal-footer">
               <button
                 className="am26-button am26-btn-danger"
-                onClick={() => handleReject(selectedAsset.id)}
+                onClick={() => requestConfirm("reject", selectedAsset)}
               >
                 Reject
               </button>
+
               <button
                 className="am26-button am26-btn-primary"
-                onClick={() => handleAccept(selectedAsset.id)}
+                onClick={() => requestConfirm("accept", selectedAsset)}
               >
                 Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModalOpen && confirmAsset && (
+        <div className="am26-modal-overlay" onClick={closeConfirmModal}>
+          <div
+            className="am26-modal am26-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="am26-modal-header">
+              <div className="am26-modal-title">
+                {confirmAction === "accept"
+                  ? "Confirm Approval"
+                  : "Confirm Rejection"}
+              </div>
+              <button className="am26-modal-close" onClick={closeConfirmModal}>
+                ✕
+              </button>
+            </div>
+            <div className="am26-confirm-body">
+              Are you sure you want to{" "}
+              <span
+                className={
+                  confirmAction === "accept"
+                    ? "am26-confirm-text-accept"
+                    : "am26-confirm-text-reject"
+                }
+              >
+                {confirmAction === "accept" ? "approve" : "reject"}
+              </span>{" "}
+              this asset?
+            </div>
+            <div className="am26-modal-footer">
+              <button
+                className="am26-button am26-btn-outline"
+                onClick={closeConfirmModal}
+              >
+                Cancel
+              </button>
+              <button
+                className={
+                  confirmAction === "accept"
+                    ? "am26-button am26-btn-primary"
+                    : "am26-button am26-btn-danger"
+                }
+                onClick={handleConfirmYes}
+              >
+                Yes, {confirmAction === "accept" ? "Approve" : "Reject"}
               </button>
             </div>
           </div>

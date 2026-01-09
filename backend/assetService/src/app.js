@@ -3,6 +3,9 @@ const compression = require("compression");
 const morgan = require("morgan");
 const config = require("./config/env");
 const logger = require("./utils/logger");
+const assetRoutes = require("./routes/assetRoutes");
+ 
+
 
 // Security middleware
 const {
@@ -59,6 +62,10 @@ if (config.nodeEnv === "development") {
  * ========================================
  */
 
+//asset management route 
+app.use("/api/assets", assetRoutes);
+
+
 // Root
 app.get("/", (req, res) => {
   res.json({
@@ -68,6 +75,8 @@ app.get("/", (req, res) => {
     environment: config.nodeEnv,
   });
 });
+
+
 
 // Health check
 app.get("/api/v1/health", (req, res) => {
@@ -119,3 +128,4 @@ process.on("uncaughtException", (err) => {
 });
 
 module.exports = app;
+

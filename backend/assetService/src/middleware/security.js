@@ -7,20 +7,24 @@ const config = require("../config/env");
  */
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // allow non-browser tools (Thunder, Postman)
     if (!origin) return callback(null, true);
 
-    if (config.cors.origins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
+    // allow all localhost ports (3000, 3001, etc.)
+    if (
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1")
+    ) {
+      return callback(null, true);
     }
+
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
-  optionsSuccessStatus: 200,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
+
 
 /**
  * Security headers configuration
