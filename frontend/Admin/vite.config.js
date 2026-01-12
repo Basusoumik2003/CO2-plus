@@ -17,9 +17,17 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+
       // Notification service
       '/api/notifications': {
         target: process.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+      },
+
+      // ✅ Asset service (THIS WAS MISSING)
+      '/api/assets': {
+        target: process.env.VITE_ASSET_SERVICE_URL || 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       },
