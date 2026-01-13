@@ -15,10 +15,12 @@
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
-  align-items: center;
+  align-items: stretch;   /* stretch tabs to same height */
 }
 
+/* each tab fills available space equally */
 .config-tab {
+  flex: 1 1 0;            /* grow and shrink equally, base 0 */
   background: #f3f4f6;
   border-radius: 10px;
   padding: 10px 16px;
@@ -26,13 +28,18 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
+  justify-content: center; /* center icon + label inside */
   font-weight: 600;
   color: #1f2d3d;
   cursor: pointer;
   transition: all 0.16s ease;
+  text-align: center;
+  min-width: 0;           /* prevent overflow on long labels */
 }
 
-.config-tab svg { font-size: 16px; }
+.config-tab svg {
+  font-size: 16px;
+}
 
 .config-tab:hover {
   transform: translateY(-2px);
@@ -44,6 +51,7 @@
   border: 1px solid #cfe3ff;
   box-shadow: 0 6px 18px rgba(2, 6, 23, 0.03);
 }
+
 
 /* Content wrapper */
 .config-page__content {
@@ -285,6 +293,3 @@
 }
 
 /* end of file */
-
-
-
