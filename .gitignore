@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# Build and cache folders
+dist/
+build/
+.cache/
+.vite/
+.next/
+out/
+coverage/
+
+# Environment files
+.env
+.env*
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Archives
+*.zip
+*.tar
+*.gz
