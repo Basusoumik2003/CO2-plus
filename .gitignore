@@ -12,10 +12,9 @@ coverage/
 
 # Environment files
 .env
+.env*
 .env.local
 .env.*.local
-.env*
-
 
 # Log files
 npm-debug.log*
@@ -25,7 +24,7 @@ pnpm-debug.log*
 logs/
 *.log
 
-# System files (OS-specific)
+# System files
 .DS_Store
 Thumbs.db
 
@@ -40,16 +39,7 @@ Thumbs.db
 *.temp
 *.bak
 
-# Test coverage
-coverage/
-
-# Optional lock files (if you use only one package manager)
-# Uncomment if needed
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
-# Misc
+# Archives
 *.zip
 *.tar
 *.gz
