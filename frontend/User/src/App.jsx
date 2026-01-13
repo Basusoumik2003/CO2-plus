@@ -10,6 +10,7 @@ import UserDashboard from './components/userDashboard';
 import AdminDashboard from '../../Admin/src/pages/AdminDashboard';
 import Upload from './components/upload';
 import Blog from './pages/blog';
+import BlogDetailPage from './pages/blog-detail';
 import Engage from './pages/engage';
 import Wallet from './pages/wallet';
 import Profile from './pages/profile';
@@ -137,6 +138,8 @@ const App = () => {
         <Route path="/adminDashboard" element={<RedirectToAdmin />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/blog" element={<Blog isAuthenticated={isAuthenticated} />} />
+        <Route path="/blog/:id" element={<BlogDetailPage />} />
+
         <Route path="/engage" element={<Engage />} />
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/profile" element={<Profile />} />

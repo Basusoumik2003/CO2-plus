@@ -1,0 +1,129 @@
+/* Blog Detail Page Styles */
+
+.blog-detail-container {
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.blog-detail-nav {
+  border-bottom: 1px solid var(--border);
+}
+
+.blog-detail-nav-content {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.back-button:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.back-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.blog-detail-main {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.blog-detail-hero {
+  width: 100%;
+  height: 24rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  background: linear-gradient(to bottom right, rgba(112, 67, 163, 0.1), rgba(245, 158, 11, 0.1));
+}
+
+.blog-detail-hero-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+}
+
+.blog-detail-header {
+  margin-bottom: 2rem;
+}
+
+.blog-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.blog-category-tag {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.blog-date {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.blog-detail-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  color: var(--foreground);
+  margin-bottom: 1rem;
+}
+
+.blog-author {
+  font-size: 1.125rem;
+  color: var(--muted-foreground);
+}
+
+.blog-article {
+  margin-bottom: 3rem;
+}
+
+.blog-article-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: var(--foreground);
+  line-height: 1.6;
+}
+
+.blog-h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--foreground);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.blog-h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--foreground);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.blog-paragraph {
+  color: var(--foreground);
+}
