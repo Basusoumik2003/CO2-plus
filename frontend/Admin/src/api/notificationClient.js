@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// Prefer env URL, but fall back to local dev default
+const baseURL =
+  import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001';
+
 const notificationClient = axios.create({
-  baseURL: import.meta.env.VITE_NOTIFICATION_SERVICE_URL,
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -21,10 +25,8 @@ notificationClient.interceptors.request.use((config) => {
 notificationClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
+    // Do NOT clear tokens or redirect on notification errors; surface the error
+    // so pages can handle gracefully without logging the user out.
     return Promise.reject(error);
   }
 );

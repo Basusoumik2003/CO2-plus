@@ -3,161 +3,148 @@ const logger = require('../utils/logger');
 const { NOTIFICATION_TYPES } = require('../config/constants');
 
 class NotificationService {
-  // Handle user signup event
+
+  /* ================= SIGNUP ================= */
+
   static async handleSignup(userData, req) {
     try {
-      const ipAddress = req.ip || req.connection.remoteAddress;
-      const deviceInfo = req.get('user-agent') || 'Unknown device';
+      if (!userData?.email) throw new Error('Invalid user data');
 
-      const notification = await Notification.create({
+      const ipAddress = req?.ip || req?.connection?.remoteAddress || 'unknown';
+      const deviceInfo = req?.get?.('user-agent') || 'unknown';
+
+      return await Notification.create({
         event_type: NOTIFICATION_TYPES.USER_SIGNUP,
-        user_id: userData.id,
-        username: userData.username,
+        user_id: userData.id || null,
+        username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role_name,
+        user_role: userData.role || 'user',
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
           action: 'New user registration',
-          timestamp: new Date().toISOString(),
           source: 'signup'
         }
       });
 
-      logger.info(`Signup notification created for user: ${userData.email}`);
-      return notification;
     } catch (error) {
-      logger.error('Error handling signup notification:', error);
+      logger.error('❌ Signup notification error:', error);
       throw error;
     }
   }
 
-  // Handle user login event
+  /* ================= LOGIN ================= */
+
   static async handleLogin(userData, req) {
     try {
-      const ipAddress = req.ip || req.connection.remoteAddress;
-      const deviceInfo = req.get('user-agent') || 'Unknown device';
+      const ipAddress = req?.ip || req?.connection?.remoteAddress || 'unknown';
+      const deviceInfo = req?.get?.('user-agent') || 'unknown';
 
-      const notification = await Notification.create({
+      return await Notification.create({
         event_type: NOTIFICATION_TYPES.USER_LOGIN,
-        user_id: userData.id,
-        username: userData.username,
+        user_id: userData.id || null,
+        username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role_name,
+        user_role: userData.role || 'user',
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
           action: 'User login',
-          timestamp: new Date().toISOString(),
           source: 'login'
         }
       });
 
-      logger.info(`Login notification created for user: ${userData.email}`);
-      return notification;
     } catch (error) {
-      logger.error('Error handling login notification:', error);
+      logger.error('❌ Login notification error:', error);
       throw error;
     }
   }
 
-  // Handle failed login event
+  /* ================= FAILED LOGIN ================= */
+
   static async handleFailedLogin(email, req, attemptNumber = 1) {
     try {
-      const ipAddress = req.ip || req.connection.remoteAddress;
-      const deviceInfo = req.get('user-agent') || 'Unknown device';
+      const ipAddress = req?.ip || req?.connection?.remoteAddress || 'unknown';
+      const deviceInfo = req?.get?.('user-agent') || 'unknown';
 
-      const severity = attemptNumber >= 3 ? 'high' : 'low';
-
-      const notification = await Notification.create({
+      return await Notification.create({
         event_type: NOTIFICATION_TYPES.FAILED_LOGIN,
-        username: 'Unknown',
-        email: email,
+        user_id: null,
+        username: email,
+        email,
         user_role: 'unknown',
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
           action: 'Failed login attempt',
-          timestamp: new Date().toISOString(),
           attempt_number: attemptNumber,
-          severity: severity,
-          source: 'login'
+          severity: attemptNumber >= 3 ? 'high' : 'low',
+          source: 'security'
         }
       });
 
-      logger.warn(`Failed login attempt for: ${email} (Attempt: ${attemptNumber})`);
-      return notification;
     } catch (error) {
-      logger.error('Error handling failed login notification:', error);
+      logger.error('❌ Failed login notification error:', error);
       throw error;
     }
   }
 
-  // Handle account locked event
+  /* ================= ACCOUNT LOCKED ================= */
+
   static async handleAccountLocked(email, req) {
     try {
-      const ipAddress = req.ip || req.connection.remoteAddress;
-      const deviceInfo = req.get('user-agent') || 'Unknown device';
+      const ipAddress = req?.ip || req?.connection?.remoteAddress || 'unknown';
+      const deviceInfo = req?.get?.('user-agent') || 'unknown';
 
-      const notification = await Notification.create({
+      return await Notification.create({
         event_type: NOTIFICATION_TYPES.ACCOUNT_LOCKED,
-        username: 'Unknown',
-        email: email,
+        user_id: null,
+        username: email,
+        email,
         user_role: 'unknown',
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
           action: 'Account locked',
-          timestamp: new Date().toISOString(),
-          reason: 'Multiple failed login attempts',
           severity: 'critical',
           source: 'security'
         }
       });
 
-      logger.warn(`Account locked: ${email}`);
-      return notification;
     } catch (error) {
-      logger.error('Error handling account locked notification:', error);
+      logger.error('❌ Account locked notification error:', error);
       throw error;
     }
   }
 
-  // Handle email verified event
+  /* ================= EMAIL VERIFIED ================= */
+
   static async handleEmailVerified(userData) {
     try {
-      const notification = await Notification.create({
+      return await Notification.create({
         event_type: NOTIFICATION_TYPES.EMAIL_VERIFIED,
-        user_id: userData.id,
-        username: userData.username,
+        user_id: userData.id || null,
+        username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role_name,
+        user_role: userData.role || 'user',
         ip_address: 'system',
         device_info: 'system',
         metadata: {
           action: 'Email verified',
-          timestamp: new Date().toISOString(),
           source: 'email'
         }
       });
 
-      logger.info(`Email verified for user: ${userData.email}`);
-      return notification;
     } catch (error) {
-      logger.error('Error handling email verified notification:', error);
+      logger.error('❌ Email verified notification error:', error);
       throw error;
     }
   }
 
-  // Get stats
+  /* ================= STATS ================= */
+
   static async getStats(hoursBack = 24) {
-    try {
-      const stats = await Notification.getStats(hoursBack);
-      return stats;
-    } catch (error) {
-      logger.error('Error fetching stats:', error);
-      throw error;
-    }
+    return await Notification.getStats(hoursBack);
   }
 }
 

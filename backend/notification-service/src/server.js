@@ -26,13 +26,35 @@ app.use(cors({
 // ==================== ROUTES ====================
 app.use('/api/notifications', notificationRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Test auth route
+const auth = require('./middleware/auth');
+app.get('/api/test-auth', auth, (req, res) => {
   res.status(200).json({
     status: 'success',
-    service: config.serviceName,
-    timestamp: new Date().toISOString()
+    user: req.user
   });
+});
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    const dbConnected = await testConnection();
+    res.status(dbConnected ? 200 : 503).json({
+      status: dbConnected ? 'success' : 'error',
+      service: config.serviceName,
+      database: dbConnected ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      service: config.serviceName,
+      database: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // ==================== ERROR HANDLING ====================
