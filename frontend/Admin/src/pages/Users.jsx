@@ -1,200 +1,206 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "../styles/Users.css";
 import {
-  FaUpload,
-  FaDownload,
-  FaUserPlus,
-  FaEdit,
   FaEye,
   FaCheck,
   FaTimes,
 } from "react-icons/fa";
 import { IoWarningOutline } from "react-icons/io5";
 
-import { fetchNotifications, markAsRead } from "../services/notificationApi";
+import { fetchNotifications } from "../services/notificationApi";
 import {
   approveUser,
   rejectUser,
   getUserByEmail,
-  fetchAllUsers, // ✅ NEW (auth service)
+  fetchAllUsers,
 } from "../services/userManagementApi";
 
 const Users = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ status: "all", role: "all" });
   const [searchTerm, setSearchTerm] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
+  const [error, setError] = useState(null);
+
+  const isMounted = useRef(true);
+
+  const getCookie = (name) => {
+    const nameEQ = name + "=";
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.indexOf(nameEQ) === 0) {
+        return cookie.substring(nameEQ.length);
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
-    loadNotifications();
-    loadUsers();
+    isMounted.current = true;
 
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    const token = localStorage.getItem("authToken") || getCookie("authToken");
+
+    if (!token) {
+      setError("No authentication token found");
+      setLoading(false);
+      return;
+    }
+
+    safeLoad();
+    const interval = setInterval(safeLoad, 30000);
+
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  /* ---------------- PENDING APPROVALS (NOTIFICATIONS) ---------------- */
+  const safeLoad = async () => {
+    if (!isMounted.current) return;
+    await loadData();
+  };
 
-  const loadNotifications = async () => {
+  const loadData = async () => {
     try {
+      if (!isMounted.current) return;
+
       setLoading(true);
+      setError(null);
 
-      const unreadResponse = await fetchNotifications({
-        status: "new",
-        limit: 50,
-      });
+      const [, usersRes] = await Promise.all([
+        fetchNotifications({ status: "new", limit: 50 }).catch(() => ({ data: [] })),
+        fetchAllUsers().catch(() => ({ data: [] })),
+      ]);
 
-      const pending = unreadResponse.data.map((notif) => ({
-        id: notif.id,
-        name: notif.username || "Unknown User",
-        email: notif.email,
-        userId: notif.user_id,
-        eventType: notif.event_type,
-        ipAddress: notif.ip_address,
-        createdAt: notif.created_at,
-      }));
+      const users = Array.isArray(usersRes)
+        ? usersRes
+        : usersRes?.data || [];
+
+      const pending = users
+        .filter((u) => (u?.status || "").toLowerCase() === "pending")
+        .map((u) => ({
+          id: u.id || u.user_id,
+          name: u.username || "Unknown",
+          email: u.email,
+          userId: u.id || u.user_id,
+          ipAddress: u.ip_address || "N/A",
+          role: u.user_role || "user",
+          status: u.status,
+          createdAt: u.created_at,
+        }));
+
+      if (!isMounted.current) return;
 
       setPendingApprovals(pending);
-    } catch (error) {
-      console.error("Error loading notifications:", error);
-    } finally {
+      setAllUsers(users);
+      setLoading(false);
+    } catch (err) {
+      if (!isMounted.current) return;
+      setError(err.message || "Failed to load data");
       setLoading(false);
     }
   };
 
-  /* ---------------- ALL USERS (AUTH SERVICE) ---------------- */
-
-  const loadUsers = async () => {
+  const handleApprove = async (userId, email) => {
     try {
-      const res = await fetchAllUsers();
-      setAllUsers(res.data); // ✅ real users table
-    } catch (error) {
-      console.error("Error loading users:", error);
-    }
-  };
+      setActionLoading(userId);
 
-  /* ---------------- APPROVE USER ---------------- */
+      let resolvedUserId = userId;
+      if (!resolvedUserId && email) {
+        const userRes = await getUserByEmail(email);
+        resolvedUserId = userRes?.id || userRes?._id;
+      }
 
-  const handleApprove = async (notificationId, email) => {
-    try {
-      setActionLoading(notificationId);
+      if (!resolvedUserId) throw new Error("User ID not found");
 
-      const userResponse = await getUserByEmail(email);
-      const userId = userResponse.data.id;
-
-      await approveUser(userId);
-      await markAsRead(notificationId);
-
-      await loadNotifications();
-      await loadUsers();
-
-      alert(`User ${email} approved successfully!`);
-    } catch (error) {
-      console.error("Error approving user:", error);
-      alert("Failed to approve user.");
+      await approveUser(resolvedUserId);
+      await loadData();
+      alert("User approved successfully!");
+    } catch (err) {
+      alert("Failed to approve user: " + err.message);
     } finally {
-      setActionLoading(null);
+      if (isMounted.current) setActionLoading(null);
     }
   };
 
-  /* ---------------- REJECT USER ---------------- */
-
-  const handleReject = async (notificationId, email) => {
+  const handleReject = async (userId, email) => {
     try {
-      setActionLoading(notificationId);
+      setActionLoading(userId);
+      const reason = prompt("Rejection reason:");
+      if (!reason) return setActionLoading(null);
 
-      const reason =
-        prompt("Enter rejection reason (optional):") ||
-        "Administrative decision";
+      let resolvedUserId = userId;
+      if (!resolvedUserId && email) {
+        const userRes = await getUserByEmail(email);
+        resolvedUserId = userRes?.id || userRes?._id;
+      }
 
-      const userResponse = await getUserByEmail(email);
-      const userId = userResponse.data.id;
+      if (!resolvedUserId) throw new Error("User ID not found");
 
-      await rejectUser(userId, reason);
-      await markAsRead(notificationId);
-
-      await loadNotifications();
-      await loadUsers();
-
-      alert(`User ${email} rejected successfully!`);
-    } catch (error) {
-      console.error("Error rejecting user:", error);
-      alert("Failed to reject user.");
+      await rejectUser(resolvedUserId, reason);
+      await loadData();
+      alert("User rejected successfully!");
+    } catch (err) {
+      alert("Failed to reject user: " + err.message);
     } finally {
-      setActionLoading(null);
+      if (isMounted.current) setActionLoading(null);
     }
   };
 
-  const filteredUsers = allUsers.filter((user) => {
-    const matchesSearch =
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredUsers = allUsers.filter((u = {}) => {
+    const name = u.username || "";
+    const email = u.email || "";
 
-    const matchesStatus =
-      filter.status === "all" ||
-      user.status?.toLowerCase() === filter.status;
+    const matchSearch =
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesRole =
-      filter.role === "all" ||
-      user.role?.toLowerCase() === filter.role;
+    const matchStatus =
+      filter.status === "all" || u.status?.toLowerCase() === filter.status;
 
-    return matchesSearch && matchesStatus && matchesRole;
+    const matchRole =
+      filter.role === "all" || u.user_role?.toLowerCase() === filter.role;
+
+    return matchSearch && matchStatus && matchRole;
   });
 
   if (loading) {
-    return (
-      <div className="users-page">
-        <div style={{ textAlign: "center", padding: "50px" }}>
-          Loading...
-        </div>
-      </div>
-    );
+    return <div className="users-page"><p style={{ textAlign:"center" }}>⏳ Loading...</p></div>;
   }
 
-  /* ================= UI BELOW (UNCHANGED) ================= */
+  if (error) {
+    return <div className="users-page"><p style={{ color:"red", textAlign:"center" }}>{error}</p></div>;
+  }
 
   return (
     <div className="users-page">
-      {/* HEADER */}
-      <div className="users-header">
-        <div className="users-header-left">
-          <h1>User Management</h1>
-          <p>Manage all user accounts, roles, and permissions</p>
-        </div>
-        <div className="users-header-buttons">
-          <button className="users-import"><FaUpload /> Import Users</button>
-          <button className="users-export"><FaDownload /> Export Data</button>
-          <button className="users-edit"><FaEdit /> Edit User</button>
-          <button className="users-add"><FaUserPlus /> Add User</button>
-        </div>
-      </div>
 
-      {/* PENDING APPROVALS */}
       <div className="users-section">
-        <h2>
-          <IoWarningOutline /> Pending Approvals
-          <span className="users-badge">{pendingApprovals.length}</span>
-        </h2>
+        <h2><IoWarningOutline /> Pending Approvals <span className="users-badge">{pendingApprovals.length}</span></h2>
 
         {pendingApprovals.map((user) => (
           <div key={user.id} className="users-approval-card">
             <div>
               <h3>{user.name}</h3>
               <p>{user.email}</p>
+              <small>IP: {user.ipAddress}</small>
             </div>
+
             <div className="users-actions">
-              <button className="users-approve"
-                onClick={() => handleApprove(user.id, user.email)}>
+              <button className="users-review" onClick={() => { setSelectedUser(user); setShowModal(true); }}>
+                <FaEye /> View
+              </button>
+
+              <button className="users-approve" onClick={() => handleApprove(user.userId, user.email)}>
                 <FaCheck /> Approve
               </button>
-              <button className="users-reject"
-                onClick={() => handleReject(user.id, user.email)}>
+
+              <button className="users-reject" onClick={() => handleReject(user.userId, user.email)}>
                 <FaTimes /> Reject
               </button>
             </div>
@@ -202,11 +208,56 @@ const Users = () => {
         ))}
       </div>
 
-      {/* ALL USERS TABLE */}
       <div className="users-section users-table">
         <h2>All Users ({filteredUsers.length})</h2>
-        {/* your existing table stays */}
+
+        <div className="users-controls">
+          <input placeholder="Search..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="users-search"/>
+          <select value={filter.status} onChange={(e)=>setFilter({...filter,status:e.target.value})} className="users-filter">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <table className="users-data-table">
+          <thead>
+            <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map((u) => (
+              <tr key={u.id}>
+                <td>{u.username || "N/A"}</td>
+                <td>{u.email}</td>
+                <td>{u.user_role || "user"}</td>
+                <td><span className={`status-badge status-${u.status}`}>{u.status}</span></td>
+                <td><button className="action-btn" onClick={()=>{setSelectedUser(u);setShowModal(true);}}><FaEye/> View</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {showModal && selectedUser && (
+        <div className="users-modal" onClick={()=>setShowModal(false)}>
+          <div className="users-modal-content" onClick={(e)=>e.stopPropagation()}>
+            <h2>User Details</h2>
+            <p><strong>Name:</strong> {selectedUser.username}</p>
+            <p><strong>Email:</strong> {selectedUser.email}</p>
+            <p><strong>Role:</strong> {selectedUser.user_role}</p>
+            <p><strong>Status:</strong> {selectedUser.status}</p>
+            <p><strong>IP:</strong> {selectedUser.ip_address || "N/A"}</p>
+
+            <button 
+              className="users-modal-close" 
+              onClick={() => setShowModal(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

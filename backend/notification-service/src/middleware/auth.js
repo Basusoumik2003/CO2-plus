@@ -5,21 +5,38 @@ const { MESSAGES } = require('../config/constants');
 
 const auth = (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.headers.authorization?.split(' ');
+    // Get token from header (allow "Bearer <token>" or raw token)
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : authHeader;
 
     if (!token) {
       return res.status(401).json({
         status: 'error',
-        message: MESSAGES.INVALID_TOKEN
+        message: 'Token missing'
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, config.auth.jwtSecret);
+    // Verify token with the shared secret
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid token'
+      });
+    }
+
+    // Log once per request for debugging
+    console.log('Decoded JWT (notification):', decoded);
+
+    const role = (decoded.role || decoded.role_name || '').toUpperCase();
+
     req.user = {
       id: decoded.id,
-      role: decoded.role,
+      role,
       email: decoded.email
     };
 
@@ -29,7 +46,7 @@ const auth = (req, res, next) => {
     logger.error('Authentication error:', error);
     res.status(401).json({
       status: 'error',
-      message: MESSAGES.INVALID_TOKEN,
+      message: 'Invalid token',
       error: error.message
     });
   }

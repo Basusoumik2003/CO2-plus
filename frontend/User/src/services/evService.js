@@ -1,4 +1,4 @@
-import apiClient from "./api";
+import { assetApiClient } from "./apiClient";
 
 const evService = {
   // ==============================
@@ -7,7 +7,7 @@ const evService = {
   // ==============================
   getAllEVs: async (userId) => {
     try {
-      const res = await apiClient.get(`/evmasterdata/${userId}`);
+      const res = await assetApiClient.get(`/evmasterdata/${userId}`);
       return res.data;
     } catch (error) {
       throw error.response?.data || {
@@ -23,7 +23,7 @@ const evService = {
   // ==============================
   getEV: async (evId) => {
     try {
-      const res = await apiClient.get(`/evmasterdata/single/${evId}`);
+      const res = await assetApiClient.get(`/evmasterdata/single/${evId}`);
       return res.data;
     } catch (error) {
       throw error.response?.data || {
@@ -39,7 +39,7 @@ const evService = {
   // ==============================
   createEV: async (evData) => {
     try {
-      const res = await apiClient.post("/evmasterdata", evData);
+      const res = await assetApiClient.post("/evmasterdata", evData);
       return res.data;
     } catch (error) {
       throw error.response?.data || {
@@ -55,7 +55,7 @@ const evService = {
   // ==============================
   updateEV: async (evId, evData) => {
     try {
-      const res = await apiClient.put(`/evmasterdata/${evId}`, evData);
+      const res = await assetApiClient.put(`/evmasterdata/${evId}`, evData);
       return res.data;
     } catch (error) {
       throw error.response?.data || {
@@ -71,7 +71,7 @@ const evService = {
   // ==============================
   deleteEV: async (evId) => {
     try {
-      const res = await apiClient.delete(`/evmasterdata/${evId}`);
+      const res = await assetApiClient.delete(`/evmasterdata/${evId}`);
       return res.data;
     } catch (error) {
       throw error.response?.data || {
@@ -87,7 +87,7 @@ const evService = {
   // ==============================
   updateEVStatus: async (evId, status) => {
     try {
-      const res = await apiClient.patch(
+      const res = await assetApiClient.patch(
         `/evmasterdata/${evId}/status`,
         { status }
       );
