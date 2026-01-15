@@ -105,17 +105,17 @@ exports.register = async (req, res) => {
 
     // ✅ Send signup notification event to notification service
     try {
-      await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
-        event_type: 'user.signup',
-        user: {
-          id: userId,
-          username: username,
-          email: email.toLowerCase(),
-          role_name: 'USER'
-        },
-        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
-        device_info: req.get('user-agent') || 'Unknown device'
-      });
+     await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+  event_type: 'user.signup',
+  user: {
+    id: userId,
+    username: username,
+    email: email.toLowerCase(),
+    role: roleRes.rows[0].role_name   // 🔥 FIX
+  },
+  ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+  device_info: req.get('user-agent') || 'Unknown device'
+})
     } catch (notifError) {
       console.error('Notification service error:', notifError.message);
       // Don't fail the signup if notification fails
@@ -195,16 +195,17 @@ exports.verifyOTP = async (req, res) => {
     // ✅ Send email verified notification event
     try {
       await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
-        event_type: 'user.email.verified',
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role_name: user.role_name
-        },
-        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
-        device_info: req.get('user-agent') || 'Unknown device'
-      });
+  event_type: 'user.email.verified',
+  user: {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role_name   // 🔥 ensure this
+  },
+  ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+  device_info: req.get('user-agent') || 'Unknown device'
+});
+
     } catch (notifError) {
       console.error('Notification service error:', notifError.message);
     }
@@ -367,17 +368,18 @@ exports.login = async (req, res) => {
 
     // ✅ Send successful login notification event
     try {
-      await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
-        event_type: 'user.login',
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role_name: user.role_name
-        },
-        ip_address: req.ip || req.connection.remoteAddress || 'unknown',
-        device_info: req.get('user-agent') || 'Unknown device'
-      });
+    await axios.post(`${NOTIFICATION_SERVICE_URL}/api/notifications/event`, {
+  event_type: 'user.login',
+  user: {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role_name     // ✅ FIX
+  },
+  ip_address: req.ip || req.connection.remoteAddress || 'unknown',
+  device_info: req.get('user-agent') || 'Unknown device'
+});
+
     } catch (notifError) {
       console.error('Notification service error:', notifError.message);
     }
