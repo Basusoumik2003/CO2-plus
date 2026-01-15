@@ -1,7 +1,6 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Footer from  "../components/Footer";
-
+import { fetchActiveJobs, submitApplication } from "../services/careerApi";
 import "../styles/Careers.css";
 import {
   FaLeaf,
@@ -15,6 +14,32 @@ import {
 
 const CareersPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Application Form State
+  const [appForm, setAppForm] = useState({
+    name: "",
+    email: "",
+    role: "", 
+    message: "",
+  });
+  const [appStatus, setAppStatus] = useState(""); // success, error, submitting
+
+  useEffect(() => {
+    const loadJobs = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchActiveJobs();
+        setJobs(data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch jobs", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadJobs();
+  }, []);
 
   const scrollToSection = (id) => {
     const section = document.getElementById(id);
@@ -24,14 +49,32 @@ const CareersPage = () => {
     }
   };
 
-  const jobs = [
-    { title: "Frontend Engineer", dept: "Engineering", type: "Remote", level: "Mid" },
-    { title: "Backend Engineer", dept: "Engineering", type: "Remote", level: "Senior" },
-    { title: "Product Designer", dept: "Design", type: "On-site", level: "Mid" },
-    { title: "Sustainability Analyst", dept: "Impact", type: "Hybrid", level: "Junior" },
-    { title: "Partnerships Manager", dept: "Business", type: "On-site", level: "Senior" },
-    { title: "Data Scientist", dept: "Engineering", type: "Hybrid", level: "Senior" },
-  ];
+  const handleAppChange = (e) => {
+    setAppForm({ ...appForm, [e.target.name]: e.target.value });
+  };
+
+  const handleAppSubmit = async (e) => {
+    e.preventDefault();
+    setAppStatus("submitting");
+    try {
+      // Note: resume upload is not implemented in backend yet, sending placeholder
+      const payload = {
+        job_id: null, 
+        name: appForm.name,
+        email: appForm.email,
+        resume_url: "http://placeholder.com/resume.pdf", 
+        message: appForm.message,
+        role_applied: appForm.role
+      };
+      
+      await submitApplication(payload);
+      setAppStatus("success");
+      setAppForm({ name: "", email: "", role: "", message: "" });
+    } catch (err) {
+      console.error(err);
+      setAppStatus("error");
+    }
+  };
 
   return (
     <div className="careers-page-wrapper">
@@ -126,28 +169,36 @@ const CareersPage = () => {
           </select>
         </div>
 
-        <div className="careers-job-cards">
-          {jobs.map((job, i) => (
-            <div className="careers-job-card" key={i}>
-              <h3>{job.title}</h3>
-              <div className="careers-job-meta">
-                <span className="careers-dept-tag">{job.dept}</span>
-                <span className="careers-meta">
-                  <FaMapMarkerAlt /> {job.type}
-                </span>
-                <span className="careers-meta">
-                  <FaUserTie /> {job.level}
-                </span>
+        {loading ? (
+          <p style={{textAlign:'center', padding: '40px'}}>Loading opportunities...</p>
+        ) : (
+          <div className="careers-job-cards">
+            {jobs.map((job, i) => (
+              <div className="careers-job-card" key={i}>
+                <h3>{job.title}</h3>
+                <div className="careers-job-meta">
+                  <span className="careers-dept-tag">{job.department}</span>
+                  <span className="careers-meta">
+                    <FaMapMarkerAlt /> {job.type}
+                  </span>
+                  <span className="careers-meta">
+                    <FaUserTie /> {job.level}
+                  </span>
+                </div>
+                <div className="careers-job-buttons">
+                  <button className="careers-apply-btn" onClick={() => {
+                     setAppForm({...appForm, role: job.title});
+                     scrollToSection("careers-apply");
+                  }}>Apply</button>
+                  <button className="careers-linkedin-btn">
+                    <FaLinkedin /> Apply via LinkedIn
+                  </button>
+                </div>
               </div>
-              <div className="careers-job-buttons">
-                <button className="careers-apply-btn">Apply</button>
-                <button className="careers-linkedin-btn">
-                  <FaLinkedin /> Apply via LinkedIn
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+            {jobs.length === 0 && <p className="no-jobs-msg">No active openings at the moment. Check back soon!</p>}
+          </div>
+        )}
       </section>
 
       {/* Work Culture & Benefits */}
@@ -238,25 +289,53 @@ const CareersPage = () => {
             <FaLinkedin /> Apply via LinkedIn
           </button>
 
-          <form className="careers-apply-form">
+          <form className="careers-apply-form" onSubmit={handleAppSubmit}>
             <label>Name</label>
-            <input type="text" placeholder="Your full name" />
+            <input 
+              type="text" 
+              name="name"
+              placeholder="Your full name" 
+              value={appForm.name}
+              onChange={handleAppChange}
+              required
+            />
 
             <label>Email</label>
-            <input type="email" placeholder="you@company.com" />
+            <input 
+              type="email" 
+              name="email"
+              placeholder="you@company.com" 
+              value={appForm.email}
+              onChange={handleAppChange}
+              required
+            />
 
             <label>Role Applying For</label>
-            <input type="text" placeholder="e.g. Frontend Engineer" />
+            <input 
+              type="text" 
+              name="role"
+              placeholder="e.g. Frontend Engineer" 
+              value={appForm.role}
+              onChange={handleAppChange}
+              required
+            />
 
-            <label>Resume</label>
-            <input type="file" />
+            <label>Resume (Optional)</label>
+            <input type="file" disabled title="Upload not yet implemented" />
 
             <label>Message</label>
-            <textarea placeholder="Share a short note"></textarea>
+            <textarea 
+              name="message"
+              placeholder="Share a short note"
+              value={appForm.message}
+              onChange={handleAppChange}
+            ></textarea>
 
-            <button type="submit" className="careers-submit-btn">
-              Submit Application
+            <button type="submit" className="careers-submit-btn" disabled={appStatus === 'submitting'}>
+              {appStatus === 'submitting' ? 'Sending...' : 'Submit Application'}
             </button>
+            {appStatus === 'success' && <p style={{color: 'green', marginTop: '10px'}}>Application sent successfully!</p>}
+            {appStatus === 'error' && <p style={{color: 'red', marginTop: '10px'}}>Something went wrong. Please try again.</p>}
           </form>
         </div>
       </section>

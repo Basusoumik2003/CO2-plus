@@ -1,6 +1,7 @@
 // PopupForms.js - React component file with all three popup forms
 import React, { useState, useEffect } from 'react';
 import '../styles/popupforms.css';
+import { assetAPI } from '../services/api';
 const PopupForms = ({
     activeEVPopup,
     setActiveEVPopup,
@@ -48,14 +49,14 @@ const PopupForms = ({
         manufacturer: '',
         model: '',
         year: '',
-        batteryCapacity: '',
+        batteryconsumed: '', // ✅ Fixed: Was batteryCapacity, caused uncontrolled input
         range: '',
         EVCategory:'',
         chargingType: '',
-        averageMileage: '',
-        homeCharging: 'yes',
-        publicCharging: 'sometimes',
-        lastServiceDate: ''
+        gridEmissionFactor: '', // ✅ Fixed: Added to state
+        topSpeed: '', // ✅ Fixed: Added to state
+        chargingTime: '', // ✅ Fixed: Added to state
+        motorpower: '', // ✅ Fixed: Added to state
     });
     const [treeData, setTreeData] = useState({
   TreeName: '',
@@ -87,8 +88,12 @@ const PopupForms = ({
   const handleSolarSubmit = async (e) => {
     e.preventDefault();
 
-    // Hardcoded U_ID for demo purposes - you can change this to any valid user ID
-    const U_ID = "DEMO_USER_001";
+    // Get user ID from localStorage
+    const U_ID = localStorage.getItem("userId");
+    if (!U_ID) {
+        showToast("User ID not found. Please log in first.", "error");
+        return;
+    }
 
     const payload = {
         SUID: crypto.randomUUID(),
@@ -116,21 +121,16 @@ const PopupForms = ({
     }
 
     try {
-        const response = await fetch('http://localhost:8080/api/solarpanel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
+        const result = await assetAPI.createSolar(payload);
 
-        if (response.ok) {
-            const { data: savedSolar, solarCount } = await response.json();
+        if (result.status === 'success') {
+            const { data: savedSolar, solarCount } = result;
             setSolarCount(solarCount);
             showToast(`Solar Panel saved! Total: ${solarCount}`, 'success');
             // Let AddAsset.jsx handle the popup closing and navigation
             handleSaveSolar(savedSolar);
         } else {
-            const err = await response.json();
-            showToast('Failed: ' + (err.message || 'Unknown error'), 'error');
+            showToast('Failed: ' + (result.message || 'Unknown error'), 'error');
         }
     } catch (err) {
         showToast('Server error: ' + err.message, 'error');
@@ -142,38 +142,39 @@ const PopupForms = ({
     const handleEVSubmit = async (e) => {
         e.preventDefault();
 
-        // Hardcoded U_ID for demo purposes - you can change this to any valid user ID
-        const U_ID = "DEMO_USER_001";
+        // ✅ 1. Auth Validation (Robust)
+        const U_ID = localStorage.getItem("userId");
+        if (!U_ID || U_ID === "undefined" || U_ID === "null") {
+            showToast("Session invalid. Please log in again.", "error");
+            return;
+        }
 
-        // 📦 Construct payload
+        // 📦 2. Payload Construction (Aligned with State & Backend)
         const payload = {
-            VUID: crypto.randomUUID(), // Generate unique VUID on frontend
-            U_ID,
+            VUID: crypto.randomUUID(),
+            U_ID, // Backend expects u_id
             Category: evData.EVCategory,
             Manufacturers: evData.manufacturer,
             Model: evData.model,
             Purchase_Year: Number(evData.year),
-            Energy_Consumed: Number(evData.batteryconsumed),
+            Energy_Consumed: Number(evData.batteryconsumed), // ✅ Fixed key mapping
             Primary_Charging_Type: evData.chargingType,
             Range: Number(evData.range),
             Grid_Emission_Factor: Number(evData.gridEmissionFactor),
+            // ✅ Optional fields validation: valid number or null
             Top_Speed: evData.topSpeed ? Number(evData.topSpeed) : null,
             Charging_Time: evData.chargingTime ? Number(evData.chargingTime) : null,
-            Motor_Power: evData.motorpower || null
+            Motor_Power: evData.motorpower ? String(evData.motorpower) : null // Backend might expect string or number, safely handling
         };
 
         // ✅ Debug log
         console.log('🔍 Submitting EV Payload:', payload);
 
         try {
-            const response = await fetch('http://localhost:8080/api/evmasterdata', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const result = await assetAPI.createEV(payload);
 
-            if (response.ok) {
-                const { data: savedEV, evCount } = await response.json();
+            if (result.status === 'success') {
+                const { data: savedEV, evCount } = result;
 
                 // ✅ Only call if it's a valid function
                 if (typeof setEvCount === 'function') {
@@ -196,9 +197,7 @@ const PopupForms = ({
                 // Let AddAsset.jsx handle the popup closing and navigation
                 handleSaveEV(savedEV);
             } else {
-                const errMsg = await response.text();
-                console.error("EV submit failed:", errMsg);
-                showToast('Failed to save EV: ' + errMsg, 'error');
+                showToast('Failed to save EV: ' + (result.message || 'Unknown error'), 'error');
             }
         } catch (error) {
             console.error("EV submit error:", error);
@@ -211,8 +210,12 @@ const PopupForms = ({
 const handleTreeSubmit = async (e) => {
     e.preventDefault();
 
-    // Hardcoded U_ID for demo purposes - you can change this to any valid user ID
-    const U_ID = "DEMO_USER_001";
+    // Get user ID from localStorage
+    const U_ID = localStorage.getItem("userId");
+    if (!U_ID) {
+        showToast("User ID not found. Please log in first.", "error");
+        return;
+    }
 
     try {
         let imageUrls = [];
@@ -225,13 +228,9 @@ const handleTreeSubmit = async (e) => {
                 formData.append('images', blob);
             });
 
-            const imageRes = await fetch('http://localhost:8080/api/image/upload', {
-                method: 'POST',
-                body: formData,
-            });
+            const imageData = await assetAPI.uploadImage(formData);
 
-            const imageData = await imageRes.json();
-            if (!imageRes.ok) {
+            if (imageData.status !== 'success') {
                 showToast(imageData.message || 'Failed to upload images.', 'error');
                 return;
             }
@@ -253,19 +252,14 @@ const handleTreeSubmit = async (e) => {
         };
 
         // ✅ Tree save request
-        const response = await fetch('http://localhost:8080/api/tree', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const result = await assetAPI.createTree(payload);
 
-        if (response.ok) {
+        if (result.status === 'success') {
             showToast('Tree data saved successfully!', 'success');
             // Let AddAsset.jsx handle the popup closing and navigation
-            handleSaveTree(response.data);
+            handleSaveTree(result.data);
         } else {
-            const data = await response.json();
-            showToast(data.message || 'Failed to save tree data.', 'error');
+            showToast(result.message || 'Failed to save tree data.', 'error');
         }
 
     } catch (error) {
@@ -466,42 +460,42 @@ function dataURLtoBlob(dataURL) {
                         <div className="form-row">
 
                             <div className="form-group">
-                                <label htmlFor="topSpeed">Top Speed</label>
+                                <label htmlFor="topSpeed">Top Speed (km/h)</label>
                                 <input
                                     type="number"
                                     id="topSpeed"
                                     className="form-control"
-                                    placeholder="e.g., 80km/h"
+                                    placeholder="e.g., 80"
                                     min="0"
                                     value={evData.topSpeed}
                                     onChange={(e) => setEVData({ ...evData, topSpeed: e.target.value })}
-                                    required
+                                    // ❌ Removed 'required' (Optional field)
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="chargingTime">Charging time</label>
+                                <label htmlFor="chargingTime">Charging time (hrs)</label>
                                 <input
                                     type="number"
                                     id="chargingTime"
                                     className="form-control"
-                                    placeholder="e.g., 1 hr"
+                                    placeholder="e.g., 1"
                                     min="0"
                                     value={evData.chargingTime}
                                     onChange={(e) => setEVData({ ...evData, chargingTime: e.target.value })}
-                                    required
+                                    // ❌ Removed 'required' (Optional field)
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="motorpower">Motor power</label>
+                                <label htmlFor="motorpower">Motor power (kW)</label>
                                 <input
                                     type="number"
                                     id="motorpower"
                                     className="form-control"
-                                    placeholder="e.g., 5 w"
+                                    placeholder="e.g., 5"
                                     min="0"
                                     value={evData.motorpower}
                                     onChange={(e) => setEVData({ ...evData, motorpower: e.target.value })}
-                                    required
+                                    // ❌ Removed 'required' (Optional field)
                                 />
                             </div>
 
