@@ -177,3 +177,10 @@
 {"level":"info","message":"📨 Processing event: user.login","service":"notification-service","timestamp":"2026-01-09 10:51:21","user":"admin1@gocarbonpositive.com","userId":22}
 {"event_type":"user.login","level":"info","message":"📥 Received event:","service":"notification-service","timestamp":"2026-01-09 13:57:32","user_email":"amirr@gmail.com"}
 {"level":"info","message":"📨 Processing event: user.login","service":"notification-service","timestamp":"2026-01-09 13:57:32","user":"amirr@gmail.com","userId":33}
+{"level":"info","message":"\n        ================================\n        🚀 Notification Service Started\n        ================================\n        Service: notification-service\n        Port: 5001\n        Environment: development\n        Database: localhost:5432/CO2-V1\n        CORS: Enabled for http://localhost:3001\n        ================================\n      ","service":"notification-service","timestamp":"2026-01-15 10:30:57"}
+{"event_type":"user.signup","level":"info","message":"📥 Received event:","service":"notification-service","timestamp":"2026-01-15 10:33:13","user_email":"lenovo@gmail.com"}
+{"level":"info","message":"📨 Processing event: user.signup","service":"notification-service","timestamp":"2026-01-15 10:33:13","user":"lenovo@gmail.com","userId":38}
+{"event_type":"user.email.verified","level":"info","message":"📥 Received event:","service":"notification-service","timestamp":"2026-01-15 10:33:31","user_email":"lenovo@gmail.com"}
+{"level":"info","message":"📨 Processing event: user.email.verified","service":"notification-service","timestamp":"2026-01-15 10:33:31","user":"lenovo@gmail.com","userId":38}
+{"event_type":"user.login","level":"info","message":"📥 Received event:","service":"notification-service","timestamp":"2026-01-15 10:37:56","user_email":"lenovo@gmail.com"}
+{"level":"info","message":"📨 Processing event: user.login","service":"notification-service","timestamp":"2026-01-15 10:37:56","user":"lenovo@gmail.com","userId":38}
