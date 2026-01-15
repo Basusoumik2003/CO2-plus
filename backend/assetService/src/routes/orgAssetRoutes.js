@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   createOrgAsset,
   getAllOrgAssets,
-  getOrgAssetById,
+  getOrgAssetsByUser,
   getOrgAssetsByStatus,
   updateOrgAssetStatus,
   deleteOrgAsset,
@@ -16,7 +16,7 @@ const {
 router.post("/", createOrgAsset);
 router.get("/", getAllOrgAssets);
 router.get("/status", getOrgAssetsByStatus);
-router.get("/:id", getOrgAssetById);
+router.get("/user/:u_id", getOrgAssetsByUser);
 router.put("/:id/status", updateOrgAssetStatus);
 router.delete("/:id", deleteOrgAsset);
 
