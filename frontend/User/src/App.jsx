@@ -14,7 +14,7 @@ import Wallet from './pages/wallet';
 import Profile from './pages/profile';
 import Games from './pages/game';
 import About from './pages/about';
-import Community from './pages/community';
+import CommunityPage from './pages/community';
 import UserNavbar from './components/userNavbar';
 import ViewAssets from "./pages/ViewAssets";
 import Contact from './pages/contact';
@@ -159,7 +159,7 @@ const App = () => {
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/view-assets" element={<ViewAssets />} />
-        <Route path="/community" element={<Community />} />
+        <Route path="/community" element={<CommunityPage />} />
         <Route path="/careers" element={<Careers />} />
         <Route path="/case-studies" element={<CaseStudy />} />
         <Route path="/contact" element={<Contact />} />
