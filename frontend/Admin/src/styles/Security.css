@@ -37,26 +37,6 @@
   flex-wrap: wrap;
 }
 
-.data-integrity {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.95rem;
-  background: #e0f2fe;
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-.data-icon {
-  color: #0284c7;
-  font-size: 1.1rem;
-}
-
-.data-integrity strong {
-  color: #15803d;
-}
-
 /* ---------- Header Buttons ---------- */
 .update-btn,
 .add-btn {
@@ -70,6 +50,7 @@
   color: #fff;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-size: 0.95rem;
 }
 
 .update-btn {
@@ -115,18 +96,6 @@
 
 .section-icon {
   font-size: 1.3rem;
-}
-
-.section-icon.green {
-  color: #16a34a;
-}
-
-.section-icon.blue {
-  color: #0284c7;
-}
-
-.section-icon.yellow {
-  color: #ca8a04;
 }
 
 /* ---------- Authentication Section ---------- */
@@ -226,8 +195,8 @@
   font-weight: 500;
 }
 
-.policy-item .green {
-  color: #16a34a;
+.policy-icon {
+  font-size: 1rem;
 }
 
 .policy-note {
@@ -352,14 +321,24 @@
   gap: 1rem;
 }
 
+/* search bar + button */
 .search-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  padding: 0.4rem 0.8rem;
+  padding: 0.35rem 0.6rem;
   border-radius: 8px;
+}
+
+.search-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.1rem;
 }
 
 .search-bar input {
@@ -369,14 +348,35 @@
   font-size: 0.9rem;
 }
 
-.filter {
+/* filter group with proper selects */
+.logs-filter-group {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   background: #f1f5f9;
   border-radius: 8px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #cbd5e1;
+}
+
+.filter-select select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.filter-select span {
+  font-size: 0.85rem;
+  color: #475569;
 }
 
 .failed-badge {
@@ -457,19 +457,28 @@
   flex-wrap: wrap;
 }
 
+/* both Export buttons share same look */
 .export-btn {
-  background-color: #0284c7;
-  color: white;
+  background-color: #6366f1;
+  color: #ffffff;
   border: none;
   padding: 0.6rem 1.2rem;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.export-btn.primary {
+  background-color: #6366f1;
+}
+
+.export-btn.secondary {
+  background-color: #6366f1;
 }
 
 .export-btn:hover {
-  background-color: #0369a1;
+  background-color: #4f46e5;
   transform: translateY(-2px);
 }
 
@@ -479,11 +488,13 @@
   padding: 0.6rem 1.2rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: 0.3s ease;
+  font-weight: 600;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .view-all-btn:hover {
   background-color: #e2e8f0;
+  transform: translateY(-2px);
 }
 
 /* ---------- Popup Modals ---------- */
@@ -500,7 +511,7 @@
 
 .popup-card {
   background: #fff;
-  padding: 2rem;
+  padding: 1.5rem 1.6rem;
   border-radius: 12px;
   width: 420px;
   max-width: 90%;
@@ -512,6 +523,9 @@
   font-size: 1.3rem;
   margin-bottom: 0.5rem;
   color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .popup-card p {
@@ -520,15 +534,22 @@
   margin-bottom: 1rem;
 }
 
+.popup-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
 .popup-card input,
-.popup-card textarea {
+.popup-card textarea,
+.popup-card select {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0.6rem;
   font-size: 0.9rem;
-  margin-bottom: 0.8rem;
   outline: none;
+  box-sizing: border-box;
 }
 
 .popup-card textarea {
@@ -540,6 +561,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+  margin-top: 0.4rem;
 }
 
 .popup-actions button {

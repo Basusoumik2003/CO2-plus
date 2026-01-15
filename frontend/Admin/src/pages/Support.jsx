@@ -1,18 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import "../styles/Support.css";
-import { FaHeadphones, FaFilter, FaEye, FaCommentDots } from "react-icons/fa";
+import {
+  FaHeadphones,
+  FaFilter,
+  FaEye,
+  FaCommentDots,
+} from "react-icons/fa";
 import { PiFolderOpen } from "react-icons/pi";
-import { GiProgression } from "react-icons/gi";
-import { MdDone } from "react-icons/md";
-import { GiBackwardTime } from "react-icons/gi";
+import { GiProgression, GiBackwardTime } from "react-icons/gi";
+import { MdDone, MdArchive } from "react-icons/md";
 import { TiStarOutline } from "react-icons/ti";
-
-
-import { MdArchive } from "react-icons/md";
 import { IoMdAddCircle } from "react-icons/io";
 
 const Support = () => {
-  const tickets = [
+  const [tickets, setTickets] = useState([
     {
       id: "TICK-2024-001",
       customer: "John Smith",
@@ -56,29 +57,108 @@ const Support = () => {
       customer: "GreenTech Solutions",
       email: "dev@greentech.com",
       subject: "API documentation request",
-      description: "Need detailed API docs for carbon credit transactions.",
+      description:
+        "Need detailed API docs for carbon credit transactions.",
       priority: "MEDIUM",
       status: "Open",
       category: "Technical",
       assignedTo: "Tech Team",
       lastUpdate: "2024-06-15 16:20",
     },
-  ];
+  ]);
+
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const [newTicket, setNewTicket] = useState({
+    customer: "",
+    email: "",
+    subject: "",
+    description: "",
+    priority: "MEDIUM",
+    status: "Open",
+    category: "General",
+    assignedTo: "",
+  });
+
+  const handleArchiveResolved = () => {
+    setTickets((prev) =>
+      prev.filter((t) => t.status.toLowerCase() !== "resolved")
+    );
+  };
+
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  const handleCreateTicketChange = (e) => {
+    const { name, value } = e.target;
+    setNewTicket((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateTicketSubmit = (e) => {
+    e.preventDefault();
+    const id = `TICK-${new Date().getTime()}`;
+    const lastUpdate = new Date().toISOString().slice(0, 16).replace("T", " ");
+    setTickets((prev) => [
+      {
+        id,
+        ...newTicket,
+        lastUpdate,
+      },
+      ...prev,
+    ]);
+    setNewTicket({
+      customer: "",
+      email: "",
+      subject: "",
+      description: "",
+      priority: "MEDIUM",
+      status: "Open",
+      category: "General",
+      assignedTo: "",
+    });
+    setIsCreateModalOpen(false);
+  };
+
+  const handleViewTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    setIsViewModalOpen(true);
+  };
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setSelectedTicket(null);
+  };
+
+  const handleChat = (ticket) => {
+    alert(`Open conversation for ${ticket.id}`);
+  };
 
   return (
     <div className="support-page">
       {/* Header Section */}
       <div className="support-header">
-        <div>
-          <h1>Support Management</h1>
-          <p>Manage customer support tickets and inquiries</p>
+        <div className="support-header-left">
+          <div className="support-header-title">
+            <FaHeadphones className="support-header-icon" color="#2563eb" />
+            <div>
+              <h1>Support Management</h1>
+              <p>Manage customer support tickets and inquiries</p>
+            </div>
+          </div>
         </div>
         <div className="support-header-buttons">
-          <button className="archive-btn">
-            <MdArchive /> Archive Resolved
+          <button className="archive-btn" onClick={handleArchiveResolved}>
+            <MdArchive color="#64748b" /> Archive Resolved
           </button>
-          <button className="create-btn">
-            <IoMdAddCircle /> Create Ticket
+          <button className="create-btn" onClick={handleOpenCreateModal}>
+            <IoMdAddCircle color="#ffffff" /> Create Ticket
           </button>
         </div>
       </div>
@@ -87,25 +167,25 @@ const Support = () => {
       <div className="support-stats">
         <div className="support-card red">
           <h2>Open Tickets</h2>
-          <PiFolderOpen className="card-icon red" />
+          <PiFolderOpen className="card-icon" color="#ef4444" />
           <h3>7</h3>
           <p className="red-text">+2 from yesterday</p>
         </div>
         <div className="support-card yellow">
           <h2>In Progress</h2>
-          <GiProgression  className="card-icon yellow" />
+          <GiProgression className="card-icon" color="#eab308" />
           <h3>12</h3>
           <p className="yellow-text">-3 from yesterday</p>
         </div>
         <div className="support-card green">
           <h2>Resolved Today</h2>
-          <MdDone  className="card-icon green" />
+          <MdDone className="card-icon" color="#16a34a" />
           <h3>8</h3>
           <p className="green-text">+5 from yesterday</p>
         </div>
         <div className="support-card blue">
           <h2>Avg Response Time</h2>
-          <GiBackwardTime  className="card-icon blue" />
+          <GiBackwardTime className="card-icon" color="#3b82f6" />
           <h3>2.5h</h3>
           <p className="blue-text">-0.5h from yesterday</p>
         </div>
@@ -114,7 +194,7 @@ const Support = () => {
       {/* Filter Section */}
       <div className="support-filter">
         <h2>
-          <FaFilter /> Filter Tickets
+          <FaFilter color="#0f172a" /> Filter Tickets
         </h2>
         <div className="support-filter-controls">
           <input type="text" placeholder="Search tickets..." />
@@ -130,7 +210,9 @@ const Support = () => {
             <option>Medium</option>
             <option>High</option>
           </select>
-          <button className="starred-btn"><TiStarOutline /> Starred Only</button>
+          <button className="starred-btn">
+            <TiStarOutline color="#facc15" /> Starred Only
+          </button>
         </div>
       </div>
 
@@ -148,17 +230,20 @@ const Support = () => {
               <th>Category</th>
               <th>Assigned To</th>
               <th>Last Update</th>
-              <th>Actions</th>
+              <th className="actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {tickets.map((t, index) => (
-              <tr key={index}>
+            {tickets.map((t) => (
+              <tr key={t.id}>
                 <td>{t.id}</td>
                 <td>
                   <div className="customer-info">
                     <div className="avatar">
-                      {t.customer.split(" ").map((n) => n[0]).join("")}
+                      {t.customer
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </div>
                     <div>
                       <strong>{t.customer}</strong>
@@ -171,7 +256,9 @@ const Support = () => {
                   <p>{t.description.slice(0, 60)}...</p>
                 </td>
                 <td>
-                  <span className={`priority ${t.priority.toLowerCase()}`}>
+                  <span
+                    className={`priority ${t.priority.toLowerCase()}`}
+                  >
                     {t.priority}
                   </span>
                 </td>
@@ -189,19 +276,246 @@ const Support = () => {
                 </td>
                 <td>{t.assignedTo}</td>
                 <td>{t.lastUpdate}</td>
-                <td className="actions">
-                  <button className="view-btn">
-                    <FaEye />
-                  </button>
-                  <button className="chat-btn">
-                    <FaCommentDots />
-                  </button>
+                <td className="actions-cell">
+                  <div className="actions">
+                    <button
+                      className="view-btn"
+                      onClick={() => handleViewTicket(t)}
+                      title="View details"
+                    >
+                      <FaEye color="#0f172a" />
+                    </button>
+                    <button
+                      className="chat-btn"
+                      onClick={() => handleChat(t)}
+                      title="Open chat"
+                    >
+                      <FaCommentDots color="#ffffff" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* View Ticket Modal */}
+      {isViewModalOpen && selectedTicket && (
+        <div className="support-modal-overlay" onClick={handleCloseViewModal}>
+          <div
+            className="support-modal support-modal-compact"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="support-modal-header">
+              <h3>
+                <FaEye color="#0f172a" /> Ticket Details
+              </h3>
+              <button
+                className="support-modal-close"
+                onClick={handleCloseViewModal}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="support-modal-body support-modal-body-grid">
+              <div>
+                <span className="detail-label">Ticket ID</span>
+                <span className="detail-value">{selectedTicket.id}</span>
+              </div>
+              <div>
+                <span className="detail-label">Customer</span>
+                <span className="detail-value">
+                  {selectedTicket.customer} ({selectedTicket.email})
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Subject</span>
+                <span className="detail-value">
+                  {selectedTicket.subject}
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Priority</span>
+                <span className="detail-value">
+                  {selectedTicket.priority}
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Status</span>
+                <span className="detail-value">
+                  {selectedTicket.status}
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Category</span>
+                <span className="detail-value">
+                  {selectedTicket.category}
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Assigned To</span>
+                <span className="detail-value">
+                  {selectedTicket.assignedTo}
+                </span>
+              </div>
+              <div>
+                <span className="detail-label">Last Update</span>
+                <span className="detail-value">
+                  {selectedTicket.lastUpdate}
+                </span>
+              </div>
+              <div className="detail-full">
+                <span className="detail-label">Description</span>
+                <span className="detail-value">
+                  {selectedTicket.description}
+                </span>
+              </div>
+            </div>
+            <div className="support-modal-footer">
+              <button
+                className="support-modal-btn secondary"
+                onClick={handleCloseViewModal}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Ticket Modal */}
+      {isCreateModalOpen && (
+        <div
+          className="support-modal-overlay"
+          onClick={handleCloseCreateModal}
+        >
+          <div
+            className="support-modal support-modal-wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="support-modal-header">
+              <h3>
+                <IoMdAddCircle color="#16a34a" /> Create Ticket
+              </h3>
+              <button
+                className="support-modal-close"
+                onClick={handleCloseCreateModal}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="support-modal-body support-modal-body-form">
+              <form
+                className="support-modal-form"
+                onSubmit={handleCreateTicketSubmit}
+              >
+                <div className="form-row">
+                  <label>Customer Name</label>
+                  <input
+                    type="text"
+                    name="customer"
+                    value={newTicket.customer}
+                    onChange={handleCreateTicketChange}
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={newTicket.email}
+                    onChange={handleCreateTicketChange}
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Subject</label>
+                  <input
+                    type="text"
+                    name="subject"
+                    value={newTicket.subject}
+                    onChange={handleCreateTicketChange}
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Description</label>
+                  <textarea
+                    name="description"
+                    rows={3}
+                    value={newTicket.description}
+                    onChange={handleCreateTicketChange}
+                    required
+                  />
+                </div>
+                <div className="form-row form-row-grid">
+                  <div>
+                    <label>Priority</label>
+                    <select
+                      name="priority"
+                      value={newTicket.priority}
+                      onChange={handleCreateTicketChange}
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Status</label>
+                    <select
+                      name="status"
+                      value={newTicket.status}
+                      onChange={handleCreateTicketChange}
+                    >
+                      <option value="Open">Open</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Resolved">Resolved</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Category</label>
+                    <select
+                      name="category"
+                      value={newTicket.category}
+                      onChange={handleCreateTicketChange}
+                    >
+                      <option value="General">General</option>
+                      <option value="Verification">Verification</option>
+                      <option value="Marketplace">Marketplace</option>
+                      <option value="Account">Account</option>
+                      <option value="Technical">Technical</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Assigned To</label>
+                    <input
+                      type="text"
+                      name="assignedTo"
+                      value={newTicket.assignedTo}
+                      onChange={handleCreateTicketChange}
+                    />
+                  </div>
+                </div>
+                <div className="support-modal-footer footer-spaced">
+                  <button
+                    type="button"
+                    className="support-modal-btn secondary"
+                    onClick={handleCloseCreateModal}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="support-modal-btn primary">
+                    Create Ticket
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

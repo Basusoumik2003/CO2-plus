@@ -37,6 +37,7 @@ import {
   FiTrendingUp,
   FiCalendar,
   FiSettings,
+  FiPlus,
 } from "react-icons/fi";
 import { FaTree, FaCar, FaIndustry, FaLeaf } from "react-icons/fa";
 import AssetTopBar from "./AssetTopBar";
@@ -678,15 +679,22 @@ const AssetManagement = () => {
     }, 3000);
   };
 
-  // Hardcoded user ID for demo purposes
-  const DEMO_USER_ID = "DEMO_USER_001";
+  // Get user ID from localStorage
+  const userId = localStorage.getItem("userId");
 
   // Fetch assets from backend
   const fetchAssets = async () => {
     try {
       setLoading(true);
       setError(null);
-      const fetchedAssets = await assetAPI.getAllAssets(DEMO_USER_ID);
+      
+      if (!userId) {
+        setError("User ID not found. Please log in.");
+        setLoading(false);
+        return;
+      }
+
+      const fetchedAssets = await assetAPI.getAllAssets(userId);
       setAssets(fetchedAssets);
     } catch (err) {
       console.error("Error fetching assets:", err);

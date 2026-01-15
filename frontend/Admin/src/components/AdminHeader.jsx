@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   FaBars,
+  FaUserCircle,
   FaBlog,
   FaChartLine,
   FaStore,
@@ -16,20 +17,9 @@ const AdminHeader = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showLogoutMsg, setShowLogoutMsg] = useState(false);
-  const [adminName, setAdminName] = useState("");
   const dropdownRef = useRef(null);
   const profileRef = useRef(null);
   const navigate = useNavigate();
-
-  // ✅ Load admin info from localStorage (filled from DB at login)
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      // adjust keys according to your backend response
-      setAdminName(user.name || user.fullName || user.username || "Admin");
-    }
-  }, []);
 
   const toggleDropdown = (e) => {
     e.preventDefault();
@@ -50,16 +40,9 @@ const AdminHeader = () => {
   const handleLogout = () => {
     setIsProfileOpen(false);
     setShowLogoutMsg(true);
-
-    // ✅ Clear all authentication data
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("role");
-
     setTimeout(() => {
       setShowLogoutMsg(false);
-      navigate("/home"); // ✅ user home page
+      navigate("/login");
     }, 2000);
   };
 
@@ -79,9 +62,6 @@ const AdminHeader = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // first letter for circle, like "T"
-  const initial = adminName ? adminName.charAt(0).toUpperCase() : "";
-
   return (
     <>
       <header className="admin-header">
@@ -89,30 +69,49 @@ const AdminHeader = () => {
         <div className="header-left">
           {/* Hamburger Dropdown */}
           <div className="hamburger-container" ref={dropdownRef}>
-            <FaBars className="hamburger" onClick={toggleDropdown} />
+            <FaBars
+              className="hamburger"
+              color="#10b981"
+              onClick={toggleDropdown}
+            />
             {isDropdownOpen && (
               <div className="dropdown-menu">
                 <ul>
                   <li onClick={() => handleOptionClick("/blog-management")}>
-                    <FaBlog className="menu-icon" /> Blog Management
+                    <FaBlog className="menu-icon" color="#ff5722" />
+                    Blog Management
                   </li>
-                  <li onClick={() => handleOptionClick("/case-study-management")}>
-                    <FaChartLine className="menu-icon" /> Case Study Management
+                  <li
+                    onClick={() =>
+                      handleOptionClick("/case-study-management")
+                    }
+                  >
+                    <FaChartLine className="menu-icon" color="#2196f3" />
+                    Case Study Management
                   </li>
                   <li onClick={() => handleOptionClick("/analytics")}>
-                    <MdAnalytics className="menu-icon" /> Analytics
+                    <MdAnalytics className="menu-icon" color="#9c27b0" />
+                    Analytics
                   </li>
                   <li onClick={() => handleOptionClick("/asset-management")}>
-                    <MdWorkspaces className="menu-icon" /> Asset Management
+                    <MdWorkspaces className="menu-icon" color="#22c55e" />
+                    Asset Management
                   </li>
                   <li onClick={() => handleOptionClick("/marketplace")}>
-                    <FaStore className="menu-icon" /> Marketplace
+                    <FaStore className="menu-icon" color="#ff9800" />
+                    Marketplace
                   </li>
-                  <li onClick={() => handleOptionClick("/community-management")}>
-                    <FaUsers className="menu-icon" /> Community Management
+                  <li
+                    onClick={() =>
+                      handleOptionClick("/community-management")
+                    }
+                  >
+                    <FaUsers className="menu-icon" color="#e91e63" />
+                    Community Management
                   </li>
                   <li onClick={() => handleOptionClick("/career-management")}>
-                    <FaBriefcase className="menu-icon" /> Career Management
+                    <FaBriefcase className="menu-icon" color="#795548" />
+                    Career Management
                   </li>
                 </ul>
               </div>
@@ -127,13 +126,13 @@ const AdminHeader = () => {
           </div>
         </div>
 
-        {/* Right Section – admin chip like "Tom" */}
+        {/* Profile Section */}
         <div className="header-right" ref={profileRef}>
-          <div className="admin-chip" onClick={toggleProfile}>
-            <div className="admin-avatar-circle">{initial}</div>
-            <span className="admin-chip-name">{adminName}</span>
-          </div>
-
+          <FaUserCircle
+            className="profile-icon"
+            color="#3b82f6"
+            onClick={toggleProfile}
+          />
           {isProfileOpen && (
             <div className="profile-popup">
               <ul>
