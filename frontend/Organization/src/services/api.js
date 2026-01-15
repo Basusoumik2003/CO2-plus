@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 // API service for fetching assets
 export const assetAPI = {
@@ -56,17 +56,25 @@ export const assetAPI = {
       // Transform EVs
       if (evsResponse.data.status === 'success' && evsResponse.data.data) {
         evsResponse.data.data.forEach(ev => {
+          // Calculate efficiency (Range / Energy Consumed)
+          const efficiencyVal = (ev.range && ev.energy_consumed) 
+            ? (ev.range / ev.energy_consumed).toFixed(2) + ' km/kWh' 
+            : 'N/A';
+            
+          // Calculate mock credits based on energy * magic factor (since backend doesn't give credits yet)
+          const credits = ev.energy_consumed ? Math.floor(ev.energy_consumed * 2) : 0;
+
           assets.push({
             id: ev.vuid || `EV-${ev.ev_id}`,
-            name: `${ev.manufacturers} ${ev.model}`,
+            name: `${ev.manufacturers || ''} ${ev.model || 'Unknown EV'}`,
             type: 'EV',
-            location: 'Location not specified', // EV data doesn't have location
-            creditsGenerated: Math.floor(Math.random() * 500) + 100, // Mock credits for now
-            verified: true,
+            location: 'Mobile Asset', 
+            creditsGenerated: credits, 
+            verified: ev.status === 'approved',
             lastUpdated: new Date(ev.created_at || Date.now()).toLocaleDateString(),
-            status: 'Active',
-            efficiency: `${Math.floor(Math.random() * 20) + 80}%`,
-            region: 'North America',
+            status: ev.status || 'Pending',
+            efficiency: efficiencyVal,
+            region: 'Global', // Default as EV moves
             originalData: ev
           });
         });
@@ -75,17 +83,25 @@ export const assetAPI = {
       // Transform Solar Panels
       if (solarResponse.data.status === 'success' && solarResponse.data.data) {
         solarResponse.data.data.forEach(solar => {
+           // Calculate efficiency (Generation / Capacity)
+           const efficiencyVal = (solar.energy_generation_value && solar.installed_capacity)
+            ? (solar.energy_generation_value / solar.installed_capacity).toFixed(2) + ' kWh/kW'
+            : 'N/A';
+            
+           // Calculate mock credits
+           const credits = solar.energy_generation_value ? Math.floor(solar.energy_generation_value * 10) : 0;
+
           assets.push({
             id: solar.suid || `SOLAR-${solar.solar_id}`,
-            name: 'Solar', // Only show 'Solar' as the name
+            name: `Solar Panel (${solar.installed_capacity || 0}kW)`, 
             type: 'Solar',
-            location: 'Location not specified',
-            creditsGenerated: Math.floor(Math.random() * 1000) + 200,
-            verified: true,
+            location: 'Fixed Installation',
+            creditsGenerated: credits,
+            verified: solar.status === 'approved',
             lastUpdated: new Date(solar.created_at || Date.now()).toLocaleDateString(),
-            status: 'Active',
-            efficiency: `${Math.floor(Math.random() * 15) + 85}%`,
-            region: 'North America',
+            status: solar.status || 'Pending',
+            efficiency: efficiencyVal,
+            region: 'Local',
             originalData: solar
           });
         });
@@ -94,16 +110,19 @@ export const assetAPI = {
       // Transform Trees
       if (treesResponse.data.status === 'success' && treesResponse.data.data) {
         treesResponse.data.data.forEach(tree => {
+          // Credits based on height or age
+          const credits = tree.height ? Math.floor(tree.height * 5) : 10;
+
           assets.push({
             id: tree.tid || `TREE-${tree.tree_id}`,
-            name: tree.treename,
+            name: tree.treename || 'Tree',
             type: 'Trees',
             location: tree.location || 'Location not specified',
-            creditsGenerated: Math.floor(Math.random() * 300) + 50,
-            verified: false, // Trees might need verification
+            creditsGenerated: credits,
+            verified: tree.status === 'approved', 
             lastUpdated: new Date(tree.plantingdate || Date.now()).toLocaleDateString(),
-            status: 'Active',
-            region: 'North America',
+            status: tree.status || 'Pending',
+            region: 'Local',
             originalData: tree
           });
         });
@@ -178,6 +197,54 @@ export const assetAPI = {
       return response.data;
     } catch (error) {
       console.error('Error updating Tree:', error);
+      throw error;
+    }
+  },
+
+  // Create EV
+  createEV: async (data) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/evmasterdata`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating EV:', error);
+      throw error;
+    }
+  },
+
+  // Create Solar Panel
+  createSolar: async (data) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/solarpanel`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating Solar Panel:', error);
+      throw error;
+    }
+  },
+
+  // Create Tree
+  createTree: async (data) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/tree`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating Tree:', error);
+      throw error;
+    }
+  },
+
+  // Upload Image
+  uploadImage: async (formData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/image/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading image:', error);
       throw error;
     }
   }

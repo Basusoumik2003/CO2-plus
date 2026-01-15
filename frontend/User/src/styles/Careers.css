@@ -79,13 +79,13 @@ body {
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  color: #3eba76;
+  color: #ffffff; /* ✅ pure white */
 }
 
 .careers-hero-content p {
   font-size: 1.1rem;
   margin-bottom: 1.8rem;
-  color: #ddd;
+  color: #ffffff; /* ✅ pure white */
 }
 
 .careers-hero-buttons button {
@@ -408,7 +408,7 @@ body {
 }
 
 
-//* Responsive Fixes */
+/* Responsive Fixes */
 @media (max-width: 900px) {
   .careers-apply-container {
     flex-direction: column;

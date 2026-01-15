@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Tabs,
@@ -20,6 +21,7 @@ import {
   FiUsers,
   FiZap,
   FiShield,
+  FiLogOut,
 } from "react-icons/fi";
 
 import Overview from "../components/Overview";
@@ -169,6 +171,15 @@ const OrgDashboard = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to log out?")) {
+      localStorage.clear(); // Clear Org App session
+      // Redirect to User App's logout route to clear its session too
+      window.location.href = "http://localhost:5173/logout"; 
+    }
+  };
 
   const [notifications] = useState([
     { id: 1, type: "alert", message: "Compliance report due in 3 days" },
@@ -228,27 +239,17 @@ const OrgDashboard = () => {
             </p>
           </div>
         </div>
-        {/* <div className="flex items-center space-x-4">
-          <Button className="button-ghost p-2" title="Calendar">
-            <CalendarIcon className="w-5 h-5" />
-          </Button>
-          <NotificationDropdown
-            notifications={notifications}
-            isOpen={showNotifications}
-            onToggle={() => setShowNotifications(!showNotifications)}
-          />
+
+        <div className="flex items-center space-x-4">
           <Button
-            className="button-ghost p-2"
-            onClick={toggleDarkMode}
-            title="Toggle Dark Mode"
+            className="button-ghost p-2 text-red-600 hover:bg-red-50 flex items-center"
+            onClick={handleLogout}
+            title="Logout"
           >
-            {isDarkMode ? (
-              <SunIcon className="w-5 h-5" />
-            ) : (
-              <MoonIcon className="w-5 h-5" />
-            )}
+            <FiLogOut className="w-5 h-5" />
+            <span className="ml-2 text-sm font-medium">Logout</span>
           </Button>
-        </div> */}
+        </div>
       </motion.header>
 
       {/* Main Content */}

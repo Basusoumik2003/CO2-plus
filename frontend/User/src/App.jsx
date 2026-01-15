@@ -3,11 +3,9 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
+
 import Home from './pages/Home';
 import UserDashboard from './components/userDashboard';
-// import OrgDashboard from '../../OrgDashboard/src/pages/OrgDashboard'
-// import AddAsset from './components/AddAsset';
-import AdminDashboard from '../../Admin/src/pages/AdminDashboard';
 import Upload from './components/upload';
 import Blog from './pages/blog';
 import BlogDetailPage from './pages/blog-detail';
@@ -16,12 +14,11 @@ import Wallet from './pages/wallet';
 import Profile from './pages/profile';
 import Games from './pages/game';
 import About from './pages/about';
-import Community from './pages/community';
+import CommunityPage from './pages/community';
 import UserNavbar from './components/userNavbar';
 import ViewAssets from "./pages/ViewAssets";
 import Contact from './pages/contact';
 import Navbar from './components/Navbar';   
-// import AddAsset from '../../OrgDashboard/frontend/src/components/AddAsset';
 import EcoVoyageGame from './game/EcoShooter/EcoVoyage/EcoVoyageGame';
 import Ecoshooter from './game/EcoShooter/Bubble';
 import Memorygame from './game/MemoryGame/Memory';
@@ -37,54 +34,74 @@ const App = () => {
 
   const RedirectToOrg = () => {
     useEffect(() => {
-      window.location.href = "https://frontend-org.onrender.com";
+      const userId = localStorage.getItem("userId");
+      const token = localStorage.getItem("token");
+      // Pass session data to Org App
+      window.location.href = `http://localhost:5174/?userId=${userId}&token=${token}`;
     }, []);
     return <p>Redirecting to Organization Dashboard...</p>;
   };
 
   const RedirectToAdmin = () => {
     useEffect(() => {
-      window.location.href = "http://localhost:3001";
+      window.location.href = "http://localhost:3001/";
     }, []);
     return <p>Redirecting to Admin Dashboard...</p>;
   };
 
-  // Initial auth state based on token in localStorage
+  const Logout = () => {
+    useEffect(() => {
+      localStorage.clear();
+      window.location.href = "/";
+    }, []);
+    return <p>Logging out...</p>;
+  };
+
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
 
-  // Listen for storage events (e.g. login/logout in other tabs)
+  // ✅ Load user from localStorage on refresh
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
+
+  // ✅ Listen to token change from other tabs
   useEffect(() => {
     const handleStorageChange = () => {
       setIsAuthenticated(!!localStorage.getItem("token"));
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) setUser(JSON.parse(savedUser));
+      else setUser(null);
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Update auth state immediately after login/signup
+  // ✅ Auth handler (FIXED)
   const handleAuthChange = (token, userData = null) => {
     if (token) {
       localStorage.setItem("token", token);
       setIsAuthenticated(true);
-      if (userData) setUser(userData);
+      if (userData) {
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
+      }
     } else {
-      localStorage.removeItem("token");
+      localStorage.clear();
       setIsAuthenticated(false);
       setUser(null);
     }
   };
 
-  // Re-check auth on every route change
   useEffect(() => {
     setIsAuthenticated(!!localStorage.getItem("token"));
   }, [location.pathname]);
 
-  // Decide when to hide Navbar
   const shouldHideNavbar = () => {
-    const hideNavbarRoutes = ['/userDashboard', '/orgDashboard', '/admin'];
+    const hideNavbarRoutes = ['/userDashboard', '/orgDashboard', '/adminDashboard'];
     if (location.pathname.startsWith('/games')) return true; 
     return hideNavbarRoutes.includes(location.pathname);
   };
@@ -92,21 +109,18 @@ const App = () => {
   return (
     <>
       <ToastContainer />
-      
-      {/* Navbar logic */}
+
       {!shouldHideNavbar() && (
         isAuthenticated 
-          ? <UserNavbar onAuthChange={handleAuthChange} />
+          ? <UserNavbar onAuthChange={handleAuthChange} user={user} />
           : <Navbar
               isAuthenticated={isAuthenticated}
               user={user}
-              showAuth={showLogin || showSignup}
               openLoginPopup={() => setShowLogin(true)}
               openSignupPopup={() => setShowSignup(true)}
             />
       )}
 
-      {/* ✅ Show login/signup popup when state is true */}
       {showLogin && (
         <LoginPopup 
           onClose={() => setShowLogin(false)} 
@@ -136,6 +150,7 @@ const App = () => {
         <Route path="/userDashboard" element={<UserDashboard />} />
         <Route path="/orgDashboard" element={<RedirectToOrg />} />
         <Route path="/adminDashboard" element={<RedirectToAdmin />} />
+        <Route path="/logout" element={<Logout />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/blog" element={<Blog isAuthenticated={isAuthenticated} />} />
         <Route path="/blog/:id" element={<BlogDetailPage />} />
@@ -144,8 +159,7 @@ const App = () => {
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/view-assets" element={<ViewAssets />} />
-        {/* <Route path="/add-asset" element={<AddAsset />} /> */}
-        <Route path="/community" element={<Community />} />
+        <Route path="/community" element={<CommunityPage />} />
         <Route path="/careers" element={<Careers />} />
         <Route path="/case-studies" element={<CaseStudy />} />
         <Route path="/contact" element={<Contact />} />
