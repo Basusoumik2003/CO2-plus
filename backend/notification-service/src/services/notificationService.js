@@ -18,7 +18,7 @@ class NotificationService {
         user_id: userData.id || null,
         username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role || 'user',
+       user_role: userData.role ?? null,
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
@@ -45,7 +45,7 @@ class NotificationService {
         user_id: userData.id || null,
         username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role || 'user',
+        user_role: userData.role ?? null,
         ip_address: ipAddress,
         device_info: deviceInfo,
         metadata: {
@@ -126,7 +126,7 @@ class NotificationService {
         user_id: userData.id || null,
         username: userData.username || userData.email,
         email: userData.email,
-        user_role: userData.role || 'user',
+        user_role: userData.role ?? null,
         ip_address: 'system',
         device_info: 'system',
         metadata: {
