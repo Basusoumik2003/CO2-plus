@@ -12,12 +12,13 @@ class EventService {
       const { event_type, user, ip_address, device_info, attempt_number } = eventData;
 
       // ✅ NORMALIZED USER (🔥 IMPORTANT)
-      const safeUser = user ? {
-        id: user.id || null,
-        username: user.username || user.name || null,
-        email: user.email || null,
-        role: user.role || user.user_role || 'user'
-      } : null;
+    const safeUser = user ? {
+  id: user.id ?? null,
+  username: user.username ?? user.name ?? null,
+  email: user.email ?? null,
+  role: user.role ?? user.user_role ?? null
+} : null;
+
 
       const requestLike = {
         ip: ip_address || null,

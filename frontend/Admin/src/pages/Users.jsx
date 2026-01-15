@@ -28,6 +28,8 @@ const Users = () => {
 
   const isMounted = useRef(true);
 
+
+
   const getCookie = (name) => {
     const nameEQ = name + "=";
     const cookies = document.cookie.split(";");
@@ -76,12 +78,32 @@ const Users = () => {
         fetchNotifications({ status: "new", limit: 50 }).catch(() => ({ data: [] })),
         fetchAllUsers().catch(() => ({ data: [] })),
       ]);
+const roleMap = {
+  "1": "user",
+  "2": "organization",
+  "3": "admin",
+};
 
-      const users = Array.isArray(usersRes)
-        ? usersRes
-        : usersRes?.data || [];
 
-      const pending = users
+     const users = Array.isArray(usersRes)
+  ? usersRes
+  : usersRes?.data || [];
+
+const normalizedUsers = users.map(u => ({
+  ...u,
+  role: u.role || u.role_name || "N/A",
+}));
+
+console.log(users.map(u => ({
+  email: u.email,
+  role_id: u.role_id,
+  resolvedRole: roleMap[String(u.role_id)],
+})));
+
+
+setAllUsers(normalizedUsers);
+
+      const pending = normalizedUsers
         .filter((u) => (u?.status || "").toLowerCase() === "pending")
         .map((u) => ({
           id: u.id || u.user_id,
@@ -89,7 +111,7 @@ const Users = () => {
           email: u.email,
           userId: u.id || u.user_id,
           ipAddress: u.ip_address || "N/A",
-          role: u.user_role || "user",
+          role: u.role,
           status: u.status,
           createdAt: u.created_at,
         }));
@@ -97,7 +119,7 @@ const Users = () => {
       if (!isMounted.current) return;
 
       setPendingApprovals(pending);
-      setAllUsers(users);
+      setAllUsers(normalizedUsers);
       setLoading(false);
     } catch (err) {
       if (!isMounted.current) return;
@@ -105,6 +127,8 @@ const Users = () => {
       setLoading(false);
     }
   };
+
+  
 
   const handleApprove = async (userId, email) => {
     try {
@@ -164,7 +188,7 @@ const Users = () => {
       filter.status === "all" || u.status?.toLowerCase() === filter.status;
 
     const matchRole =
-      filter.role === "all" || u.user_role?.toLowerCase() === filter.role;
+      filter.role === "all" || u.role?.toLowerCase() === filter.role;
 
     return matchSearch && matchStatus && matchRole;
   });
@@ -176,6 +200,8 @@ const Users = () => {
   if (error) {
     return <div className="users-page"><p style={{ color:"red", textAlign:"center" }}>{error}</p></div>;
   }
+
+  
 
   return (
     <div className="users-page">
@@ -230,7 +256,7 @@ const Users = () => {
               <tr key={u.id}>
                 <td>{u.username || "N/A"}</td>
                 <td>{u.email}</td>
-                <td>{u.user_role || "user"}</td>
+               <td>{u.role || "N/A"}</td>
                 <td><span className={`status-badge status-${u.status}`}>{u.status}</span></td>
                 <td><button className="action-btn" onClick={()=>{setSelectedUser(u);setShowModal(true);}}><FaEye/> View</button></td>
               </tr>
@@ -243,9 +269,9 @@ const Users = () => {
         <div className="users-modal" onClick={()=>setShowModal(false)}>
           <div className="users-modal-content" onClick={(e)=>e.stopPropagation()}>
             <h2>User Details</h2>
-            <p><strong>Name:</strong> {selectedUser.username}</p>
+            <p><strong>Name:</strong> {selectedUser.name || selectedUser.username || "N/A"}</p>
             <p><strong>Email:</strong> {selectedUser.email}</p>
-            <p><strong>Role:</strong> {selectedUser.user_role}</p>
+           <p><strong>Role:</strong> {selectedUser.role || "N/A"}</p>
             <p><strong>Status:</strong> {selectedUser.status}</p>
             <p><strong>IP:</strong> {selectedUser.ip_address || "N/A"}</p>
 
