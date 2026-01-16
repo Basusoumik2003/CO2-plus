@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import "../styles/AssetCard.css"; 
+import "../styles/global.css"; 
 
 // SVG Icons
 const MapPinIcon = () => (
