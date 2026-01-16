@@ -10,36 +10,47 @@ export const getMetrics = async (req, res) => {
   try {
     const sql = `
       SELECT
-        (SELECT COUNT(*) FROM ev_master_data WHERE status = 'approved') AS "totalEV",
-        (SELECT COUNT(*) FROM trees WHERE status = 'approved') AS "totalTrees",
-        (SELECT COUNT(*) FROM solar_panels WHERE status = 'approved') AS "totalSolar",
-
-        (
-          (SELECT COUNT(*) FROM ev_master_data WHERE status = 'pending') +
-          (SELECT COUNT(*) FROM trees WHERE status = 'pending') +
-          (SELECT COUNT(*) FROM solar_panels WHERE status = 'pending')
-        ) AS "pendingReview",
-
+        /* ================= TOTAL APPROVED ================= */
         (
           (SELECT COUNT(*) FROM ev_master_data WHERE status = 'approved') +
           (SELECT COUNT(*) FROM trees WHERE status = 'approved') +
-          (SELECT COUNT(*) FROM solar_panels WHERE status = 'approved')
+          (SELECT COUNT(*) FROM solar_panels WHERE status = 'approved') +
+          (SELECT COUNT(*) FROM org_assets WHERE status = 'approved')
         ) AS "approved",
 
+        /* ================= TOTAL REJECTED ================= */
         (
           (SELECT COUNT(*) FROM ev_master_data WHERE status = 'rejected') +
           (SELECT COUNT(*) FROM trees WHERE status = 'rejected') +
-          (SELECT COUNT(*) FROM solar_panels WHERE status = 'rejected')
-        ) AS "rejected"
+          (SELECT COUNT(*) FROM solar_panels WHERE status = 'rejected') +
+          (SELECT COUNT(*) FROM org_assets WHERE status = 'rejected')
+        ) AS "rejected",
+
+        /* ================= PENDING REVIEW ================= */
+        (
+          (SELECT COUNT(*) FROM ev_master_data WHERE status = 'pending') +
+          (SELECT COUNT(*) FROM trees WHERE status = 'pending') +
+          (SELECT COUNT(*) FROM solar_panels WHERE status = 'pending') +
+          (SELECT COUNT(*) FROM org_assets WHERE status = 'pending')
+        ) AS "pendingReview",
+
+        /* ================= TYPE WISE TOTAL ================= */
+        (SELECT COUNT(*) FROM ev_master_data WHERE status = 'approved') AS "totalEV",
+        (
+          (SELECT COUNT(*) FROM trees WHERE status = 'approved') +
+          (SELECT COUNT(*) FROM org_assets WHERE status = 'approved')
+        ) AS "totalTrees",
+        (SELECT COUNT(*) FROM solar_panels WHERE status = 'approved') AS "totalSolar"
     `;
 
     const { rows } = await query(sql);
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("METRICS ERROR:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 };
+
 
 /* =========================================================
    WORKFLOW (pending review list)
@@ -48,45 +59,63 @@ export const getWorkflowAssets = async (req, res) => {
   try {
     const sql = `
       SELECT
-        ev_id AS id,
-        'EV' AS type,
-        u_id,
-        status,
-        created_at AS submitted_on
-      FROM ev_master_data
-      WHERE status = 'pending'
+  ev_id::text AS id,
+  'EV' AS type,
+  u_id::text AS u_id,
+  status::text AS status,
+  created_at AS submitted_on,
+  'individual' AS submittedByType
+FROM ev_master_data
+WHERE status IN ('pending','pending_approval')
 
-      UNION ALL
+UNION ALL
 
-      SELECT
-        tid AS id,
-        'TREE' AS type,
-        u_id,
-        status,
-        created_at AS submitted_on
-      FROM trees
-      WHERE status = 'pending'
+SELECT
+  tid::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  status::text AS status,
+  created_at AS submitted_on,
+  'individual' AS submittedByType
+FROM trees
+WHERE status IN ('pending','pending_approval')
 
-      UNION ALL
+UNION ALL
 
-      SELECT
-        suid AS id,
-        'SOLAR' AS type,
-        u_id,
-        status,
-        created_at AS submitted_on
-      FROM solar_panels
-      WHERE status = 'pending'
+SELECT
+  suid::text AS id,
+  'SOLAR' AS type,
+  u_id::text AS u_id,
+  status::text AS status,
+  created_at AS submitted_on,
+  'individual' AS submittedByType
+FROM solar_panels
+WHERE status IN ('pending','pending_approval')
 
-      ORDER BY submitted_on DESC
-    `;
+UNION ALL
+
+SELECT
+  plantation_id::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  status::text AS status,
+  created_at AS submitted_on,
+  'organisation' AS submittedByType
+FROM org_assets
+WHERE status IN ('pending','pending_approval')
+
+ORDER BY submitted_on DESC;
+`;
 
     const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch workflow assets" });
+    console.error("WORKFLOW ERROR:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
+
+
 
 
 
@@ -95,40 +124,62 @@ export const getWorkflowAssets = async (req, res) => {
 ========================================================= */
 export const getApprovedAssets = async (req, res) => {
   try {
-    const { type } = req.query;
+    const sql = `
+      SELECT
+  ev_id::text AS id,
+  'EV' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM ev_master_data
+WHERE status = 'approved'
 
-    let sql = "";
-    let params = [];
+UNION ALL
 
-    if (!type || type === "all") {
-      sql = `
-        SELECT ev_id AS id, 'EV' AS type, u_id, created_at
-        FROM ev_master_data WHERE status = 'approved'
-        UNION ALL
-        SELECT tid AS id, 'TREE' AS type, u_id, created_at
-        FROM trees WHERE status = 'approved'
-        UNION ALL
-        SELECT suid AS id, 'SOLAR' AS type, u_id, created_at
-        FROM solar_panels WHERE status = 'approved'
-        ORDER BY created_at DESC
-      `;
-    } else if (type === "ev") {
-      sql = `SELECT ev_id AS id, 'EV' AS type, u_id, created_at
-             FROM ev_master_data WHERE status = 'approved'`;
-    } else if (type === "tree") {
-      sql = `SELECT tid AS id, 'TREE' AS type, u_id, created_at
-             FROM trees WHERE status = 'approved'`;
-    } else if (type === "solar") {
-      sql = `SELECT suid AS id, 'SOLAR' AS type, u_id, created_at
-             FROM solar_panels WHERE status = 'approved'`;
-    }
+SELECT
+  tid::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM trees
+WHERE status = 'approved'
 
-    const { rows } = await query(sql, params);
+UNION ALL
+
+SELECT
+  suid::text AS id,
+  'SOLAR' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM solar_panels
+WHERE status = 'approved'
+
+UNION ALL
+
+SELECT
+  plantation_id::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'organisation' AS submittedByType
+FROM org_assets
+WHERE status = 'approved'
+
+ORDER BY created_at DESC;
+
+    `;
+
+    const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch approved assets" });
+    console.error("APPROVED ERROR:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
+
+
 
 
 
@@ -161,20 +212,62 @@ export const updateAssetStatus = async (req, res) => {
 
 
 export const getRejectedAssets = async (req, res) => {
-  const sql = `
-    SELECT ev_id AS id, 'EV' AS type, u_id, created_at
-    FROM ev_master_data WHERE status = 'rejected'
-    UNION ALL
-    SELECT tid AS id, 'TREE' AS type, u_id, created_at
-    FROM trees WHERE status = 'rejected'
-    UNION ALL
-    SELECT suid AS id, 'SOLAR' AS type, u_id, created_at
-    FROM solar_panels WHERE status = 'rejected'
-    ORDER BY created_at DESC
-  `;
-  const { rows } = await query(sql);
-  res.json(rows);
+  try {
+    const sql = `
+      SELECT
+        ev_id::text AS id,
+        'EV' AS type,
+        u_id::text AS u_id,
+        created_at,
+        'individual' AS submittedByType
+      FROM ev_master_data
+      WHERE status = 'rejected'
+
+      UNION ALL
+
+      SELECT
+        tid::text AS id,
+        'TREE' AS type,
+        u_id::text AS u_id,
+        created_at,
+        'individual' AS submittedByType
+      FROM trees
+      WHERE status = 'rejected'
+
+      UNION ALL
+
+      SELECT
+        suid::text AS id,
+        'SOLAR' AS type,
+        u_id::text AS u_id,
+        created_at,
+        'individual' AS submittedByType
+      FROM solar_panels
+      WHERE status = 'rejected'
+
+      UNION ALL
+
+      SELECT
+        plantation_id::text AS id,
+        'TREE' AS type,
+        u_id::text AS u_id,
+        created_at,
+        'organisation' AS submittedByType
+      FROM org_assets
+      WHERE status = 'rejected'
+
+      ORDER BY created_at DESC
+    `;
+
+    const { rows } = await query(sql);
+    res.json(rows);
+  } catch (err) {
+    console.error("REJECTED ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 };
+
+
 
 
 export const getAssetDetails = async (req, res) => {

@@ -38,9 +38,46 @@ import {
   FiCalendar,
   FiSettings,
   FiPlus,
+   FiMapPin, 
 } from "react-icons/fi";
 import { FaTree, FaCar, FaIndustry, FaLeaf } from "react-icons/fa";
 import AssetTopBar from "./AssetTopBar";
+
+const mapOrgAssets = (orgAssets = []) => {
+  return orgAssets.map((a) => ({
+    id: a.plantation_id,
+    name: a.species_name || a.species_Name || "Plantation Asset",
+    type: "Trees",
+
+    status: a.status === "approved" ? "Active" : "Maintenance",
+    verified: a.status === "approved",
+
+    creditsGenerated: Math.round((a.trees_planted || 0) * 0.02),
+
+    location: `${a.location_lat}, ${a.location_long}`,
+    lastUpdated: new Date(a.updated_at || a.plantation_date).toLocaleDateString(),
+
+    // ✅ NEW PLANTATION DATA FORMAT
+    originalData: {
+      location_lat: a.location_lat,
+      location_long: a.location_long,
+      area_hactare: a.area_hactare,
+      species_Name: a.species_Name || a.species_name,
+      trees_planted: a.trees_planted,
+      avg_height: a.avg_height,
+      avg_dbh: a.avg_dbh,
+      survival_rate: a.survival_rate,
+      plantation_date: a.plantation_date,
+     Base_line_Land: a.base_line_land || "N/A",
+      photos: a.image_url ? [a.image_url] : [],
+
+      // keep raw ref
+      image_id: a.image_id,
+    },
+  }));
+};
+
+
 
 
 // SVG Icons
@@ -683,27 +720,39 @@ const AssetManagement = () => {
   const userId = localStorage.getItem("userId");
 
   // Fetch assets from backend
-  const fetchAssets = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      if (!userId) {
-        setError("User ID not found. Please log in.");
-        setLoading(false);
-        return;
-      }
+ const fetchAssets = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const fetchedAssets = await assetAPI.getAllAssets(userId);
-      setAssets(fetchedAssets);
-    } catch (err) {
-      console.error("Error fetching assets:", err);
-      setError("Failed to load assets. Please try again.");
-      setAssets([]);
-    } finally {
+    if (!userId) {
+      setError("User ID not found. Please log in.");
       setLoading(false);
+      return;
     }
-  };
+
+    // 1️⃣ Existing assets (EV + Solar + old Trees)
+    const baseAssets = await assetAPI.getAllAssets(userId);
+
+    // 2️⃣ ORG plantation assets
+    const orgRes = await assetAPI.getOrgAssetsByUser(userId);
+
+    const orgAssets =
+      orgRes?.success && Array.isArray(orgRes.data)
+        ? mapOrgAssets(orgRes.data)
+        : [];
+
+    // 3️⃣ Merge all assets
+    setAssets([...baseAssets, ...orgAssets]);
+  } catch (err) {
+    console.error("Error fetching assets:", err);
+    setError("Failed to load assets. Please try again.");
+    setAssets([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Load assets on component mount
   React.useEffect(() => {
@@ -1038,242 +1087,175 @@ const AssetManagement = () => {
       <Dialog open={showAssetDetails} onOpenChange={setShowAssetDetails}>
         <DialogContent className="dialog-content-medium">
           <DialogHeader>
-            <DialogTitle>Asset Details</DialogTitle>
-            <DialogDescription>
-              Detailed information about {selectedAsset?.name}
-            </DialogDescription>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 bg-primary-light rounded-lg">
+                <LayersIcon className="text-primary w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold">Asset Details</DialogTitle>
+                <DialogDescription>
+                  Detailed technical and growth information
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
+
           {selectedAsset && (
             <div className="asset-details-modal-content">
               <div className="grid-2">
-                <div>
-                  <label className="text-sm text-secondary">Asset ID</label>
-                  <p className="text-lg font-semibold">{selectedAsset.id}</p>
+                <div className="detail-item">
+                  <span className="detail-label">Asset ID</span>
+                  <span className="detail-value text-sm font-mono bg-gray-50 p-1 rounded border">
+                    {selectedAsset.id}
+                  </span>
                 </div>
-                <div>
-                  <label className="text-sm text-secondary">Type</label>
-                  <p className="text-lg font-semibold">{selectedAsset.type}</p>
+                <div className="detail-item">
+                  <span className="detail-label">Asset Type</span>
+                  <div className="flex items-center gap-2">
+                    <span className="badge bg-primary-light text-primary font-bold">
+                      {selectedAsset.type}
+                    </span>
+                  </div>
                 </div>
+
                 {selectedAsset.type === "EV" ? (
                   <>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Manufacturer
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.manufacturers || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Manufacturer</span>
+                      <span className="detail-value">{selectedAsset.originalData?.manufacturers || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">Model</label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.model || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Model</span>
+                      <span className="detail-value">{selectedAsset.originalData?.model || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Purchase Year
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.purchase_year || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Purchase Year</span>
+                      <span className="detail-value">{selectedAsset.originalData?.purchase_year || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Energy Consumed (kWh)
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.energy_consumed || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Energy Consumed (kWh)</span>
+                      <span className="detail-value">{selectedAsset.originalData?.energy_consumed || "0"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Primary Charging Type
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.primary_charging_type ||
-                          "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Charging Type</span>
+                      <span className="detail-value">{selectedAsset.originalData?.primary_charging_type || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Range (km)
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.range || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Grid Emission Factor
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.grid_emission_factor ||
-                          "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Top Speed
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.top_speed || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Charging Time
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.charging_time || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Motor Power
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.motor_power || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Range (km)</span>
+                      <span className="detail-value font-bold text-primary">{selectedAsset.originalData?.range || "N/A"}</span>
                     </div>
                   </>
                 ) : selectedAsset.type === "Solar" ? (
                   <>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Installation Capacity
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.installed_capacity ||
-                          "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Capacity</span>
+                      <span className="detail-value">{selectedAsset.originalData?.installed_capacity || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Installation Date
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.installation_date || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Installation Date</span>
+                      <span className="detail-value">
+                        {selectedAsset.originalData?.installation_date ? new Date(selectedAsset.originalData.installation_date).toLocaleDateString() : "N/A"}
+                      </span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Energy Generation Value
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.energy_generation_value ||
-                          "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Energy Generated</span>
+                      <span className="detail-value font-bold text-success">{selectedAsset.originalData?.energy_generation_value || "0"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Grid Emission Factor
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.grid_emission_factor ||
-                          "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Inverter Type
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.inverter_type || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Inverter Type</span>
+                      <span className="detail-value">{selectedAsset.originalData?.inverter_type || "N/A"}</span>
                     </div>
                   </>
                 ) : selectedAsset.type === "Trees" ? (
                   <>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Tree Name
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.treename || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Species Name</span>
+                      <span className="detail-value">{selectedAsset.originalData?.species_Name || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Botanical Name
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.botanicalname || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Plantation Date</span>
+                      <span className="detail-value">
+                        {selectedAsset.originalData?.plantation_date ? new Date(selectedAsset.originalData.plantation_date).toLocaleDateString() : "N/A"}
+                      </span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Planting Date
-                      </label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.plantingdate || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Area (Hectare)</span>
+                      <span className="detail-value">{selectedAsset.originalData?.area_hactare || "N/A"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">Height</label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.height || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Trees Planted</span>
+                      <span className="detail-value font-bold">{selectedAsset.originalData?.trees_planted || "0"}</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">Location</label>
-                      <p className="text-lg font-semibold">
-                        {selectedAsset.originalData?.location || "N/A"}
-                      </p>
+                    <div className="detail-item">
+                      <span className="detail-label">Avg Height / DBH</span>
+                      <span className="detail-value">{selectedAsset.originalData?.avg_height || "0"}m / {selectedAsset.originalData?.avg_dbh || "0"}cm</span>
                     </div>
-                    <div>
-                      <label className="text-sm text-secondary">
-                        Tree Photo
-                      </label>
-                      {selectedAsset.originalData?.photos &&
-                      selectedAsset.originalData.photos.length > 0 ? (
-                        <img
-                          src={selectedAsset.originalData.photos[0]}
-                          alt="Tree Photo"
-                          style={{
-                            maxWidth: "100%",
-                            maxHeight: "120px",
-                            borderRadius: "8px",
-                          }}
-                        />
-                      ) : (
-                        <p className="text-lg font-semibold">N/A</p>
-                      )}
+                    <div className="detail-item">
+                      <span className="detail-label">Survival Rate</span>
+                      <span className="detail-value text-indigo-dark font-bold">{selectedAsset.originalData?.survival_rate || "0"}%</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Baseline Land</span>
+                      <span className="detail-value">{selectedAsset.originalData?.Base_line_Land || "N/A"}</span>
                     </div>
                   </>
                 ) : (
-                  <div>
-                    <label className="text-sm text-secondary">Location</label>
-                    <p className="text-lg font-semibold">
-                      {selectedAsset.location}
-                    </p>
+                  <div className="detail-item">
+                    <span className="detail-label">Location</span>
+                    <span className="detail-value">{selectedAsset.location}</span>
                   </div>
                 )}
-                <div>
-                  <label className="text-sm text-secondary">
-                    Credits Generated
-                  </label>
-                  <p className="text-lg font-semibold text-green">
-                    {selectedAsset.creditsGenerated.toLocaleString()}
-                  </p>
+
+                <div className="detail-item">
+                  <span className="detail-label">Verification Status</span>
+                  <div className="flex items-center gap-2">
+                    {selectedAsset.verified ? (
+                      <span className="badge bg-green-light text-green-dark font-semibold">✓ Verified</span>
+                    ) : (
+                      <span className="badge bg-yellow-light text-yellow-dark font-semibold">⏳ Pending</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="detail-item col-span-2 bg-green-50 p-4 rounded-xl border border-green-100">
+                  <span className="detail-label text-green-800">Total Carbon Credits Generated</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="detail-value-highlight">
+                      {selectedAsset.creditsGenerated.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-green-700 font-medium">Verified Credits</span>
+                  </div>
                 </div>
               </div>
+
+              {selectedAsset.type === "Trees" && selectedAsset.originalData?.photos?.length > 0 && (
+                <div className="mt-6">
+                  <span className="detail-label block mb-3">Plantation Evidence</span>
+                  <div className="relative group overflow-hidden rounded-xl border-4 border-white shadow-md">
+                    <img
+                      src={selectedAsset.originalData.photos[0]}
+                      alt="Plantation"
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                  </div>
+                </div>
+              )}
+
               <div className="button-row">
+                <button
+                  className="view-fleet-btn"
+                  onClick={() => navigate("/view-fleet")}
+                >
+                  <FleetIcon className="w-5 h-5" />
+                  View Fleet
+                </button>
                 <button
                   className="update-asset-btn"
                   onClick={handleOpenUpdateModal}
                 >
-                  <UpdateIcon />
-                  Update
-                </button>
-                <button
-                  className="view-fleet-btn"
-                  onClick={() => {
-                    navigate("/view-fleet");
-                  }}
-                >
-                  <FleetIcon aria-hidden="true" />
-                  View Fleet
+                  <UpdateIcon className="w-5 h-5" />
+                  Update Details
                 </button>
               </div>
             </div>

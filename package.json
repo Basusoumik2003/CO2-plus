@@ -31,7 +31,8 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-     "dev": "concurrently -n ASSET,AUTH,NOTIFY,ADMIN,ORG,USER -c green,blue,yellow,magenta,cyan,white \"npm --prefix backend/assetService run dev\" \"npm --prefix backend/authentication run dev\" \"npm --prefix backend/notification-service run dev\" \"npm --prefix frontend/Admin run dev\" \"npm --prefix frontend/Organization run dev\" \"npm --prefix frontend/User run dev\""
+    "all": "concurrently \"npm install --prefix backend/assetService\" \"npm install --prefix backend/authentication\" \"npm install --prefix backend/careerService\" \"npm install --prefix backend/notification-service\"",
+     "dev": "concurrently -n ASSET,AUTH,NOTIFY,ADMIN,ORG,USER -c green,blue,yellow,magenta,cyan,white \"npm --prefix backend/assetService run dev\" \"npm --prefix backend/authentication run dev\" \"npm --prefix backend/notification-service run dev\""
   },
   "repository": {
     "type": "git",
