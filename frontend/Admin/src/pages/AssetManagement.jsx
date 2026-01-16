@@ -48,6 +48,21 @@ const AssetManagement = () => {
   // single source of truth
   const [workflowAssets, setWorkflowAssets] = useState([]);
   const [approvedAssets, setApprovedAssets] = useState([]);
+const getStatusUpdateUrl = (asset) => {
+  if (asset.submittedByType === "organisation") {
+    return `/api/org-assets/${asset.id}/status`;
+  }
+  return `/api/assets/${asset.assetType}/${asset.id}/status`;
+};
+
+const getDetailsUrl = (asset) => {
+  if (asset.submittedByType === "organisation") {
+    return `/api/assets/tree/${asset.id}/details`; // temporary
+  }
+  return `/api/assets/${asset.assetType}/${asset.id}/details`;
+};
+
+
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -69,35 +84,38 @@ const AssetManagement = () => {
           rejected: Number(metricsRes.data.rejected),
         });
 
-        setWorkflowAssets(
-          workflowRes.data.map((a) => {
-            const assetType =
-              a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
+       setWorkflowAssets(
+  workflowRes.data.map((a) => {
+    const assetType =
+      a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
 
-            const status =
-              a.status === "pending"
-                ? "Pending Review"
-                : a.status === "pending_approval"
-                ? "Pending Approval"
-                : a.status === "rejected"
-                ? "Rejected"
-                : "Pending Review";
+    const status =
+      a.status === "pending"
+        ? "Pending Review"
+        : a.status === "pending_approval"
+        ? "Pending Approval"
+        : "Rejected";
 
-            return {
-              id: a.id,
-              assetType,
-              type:
-                a.type === "EV"
-                  ? "Electric Vehicle"
-                  : a.type === "TREE"
-                  ? "Trees"
-                  : "Solar Panel",
-              status,
-              submittedBy: a.u_id,
-              submittedOn: new Date(a.submitted_on).toLocaleDateString(),
-            };
-          })
-        );
+    return {
+      id: a.id,
+      assetType,
+      type:
+        a.type === "EV"
+          ? "Electric Vehicle"
+          : a.type === "TREE"
+          ? "Trees"
+          : "Solar Panel",
+      status,
+      submittedBy: a.u_id,
+      submittedOn: new Date(a.submitted_on).toLocaleDateString(),
+
+      // 🔥 ADD THIS
+     submittedByType: (a.submittedbytype || "individual").toLowerCase(),
+
+
+    };
+  })
+);
 
         setApprovedAssets(
           approvedRes.data.map((a) => ({
@@ -117,7 +135,9 @@ const AssetManagement = () => {
             status: "Approved",
             submittedBy: a.u_id,
             submittedOn: new Date(a.created_at).toLocaleDateString(),
-            submittedByType: a.submittedByType || "individual",
+            submittedByType: (a.submittedbytype || "individual").toLowerCase(),
+
+
           }))
         );
       } catch (err) {
@@ -159,9 +179,7 @@ const AssetManagement = () => {
   /* ---------- MODAL / WORKFLOW HANDLERS ---------- */
   const openReviewModal = async (asset) => {
     try {
-      const res = await axios.get(
-        `/api/assets/${asset.assetType}/${asset.id}/details`
-      );
+     const res = await axios.get(getDetailsUrl(asset));
 
       setSelectedAsset({
         ...asset,
@@ -210,64 +228,61 @@ const AssetManagement = () => {
 
   // actual backend call when confirmed
   const handleAcceptConfirmed = async (asset) => {
-    try {
-      const res = await axios.patch(
-        `/api/assets/${asset.assetType}/${asset.id}/status`,
-        { status: "approved" }
-      );
+  try {
+ await axios.put(`/api/org-assets/${asset.id}/status`, {
+  status: "approved",
+});
 
-      const updated = res.data || {};
 
-      // remove from workflow list
-      setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
 
-      // construct single approved item with correct assetType
-      const approvedItem = {
-        id: updated.id ?? asset.id,
-        assetType: asset.assetType,
-        type: asset.type,
+
+    setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
+
+    setApprovedAssets((prev) => [
+      {
+        ...asset,
         status: "Approved",
-        submittedBy: updated.u_id ?? asset.submittedBy,
-        submittedOn: new Date(
-          updated.created_at || updated.submitted_on || new Date()
-        ).toLocaleDateString(),
-        submittedByType: updated.submittedByType || "individual",
-      };
+        submittedByType: asset.submittedByType,
+      },
+      ...prev,
+    ]);
 
-      setApprovedAssets((prev) => [approvedItem, ...prev]);
+    setMetrics((prev) => ({
+      ...prev,
+      pendingReview: Math.max(prev.pendingReview - 1, 0),
+      approved: prev.approved + 1,
+    }));
 
-      setMetrics((prev) => ({
-        ...prev,
-        pendingReview: Math.max(prev.pendingReview - 1, 0),
-        approved: prev.approved + 1,
-      }));
+    closeReviewModal();
+  } catch (err) {
+    console.error("Approve failed", err);
+  }
+};
 
-      closeReviewModal();
-    } catch (err) {
-      console.error("Approve failed", err);
-    }
-  };
 
   const handleRejectConfirmed = async (asset) => {
-    try {
-      await axios.patch(
-        `/api/assets/${asset.assetType}/${asset.id}/status`,
-        { status: "rejected" }
-      );
+  try {
+ await axios.put(`/api/org-assets/${asset.id}/status`, {
+  status: "rejected",
+});
 
-      setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
 
-      setMetrics((prev) => ({
-        ...prev,
-        pendingReview: Math.max(Number(prev.pendingReview) - 1, 0),
-        rejected: Number(prev.rejected) + 1,
-      }));
 
-      closeReviewModal();
-    } catch (err) {
-      console.error("Reject failed", err);
-    }
-  };
+
+    setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
+
+    setMetrics((prev) => ({
+      ...prev,
+      pendingReview: Math.max(prev.pendingReview - 1, 0),
+      rejected: prev.rejected + 1,
+    }));
+
+    closeReviewModal();
+  } catch (err) {
+    console.error("Reject failed", err);
+  }
+};
+
 
   // open confirmation modal
   const requestConfirm = (action, asset) => {
@@ -305,21 +320,26 @@ const AssetManagement = () => {
       const res = await axios.get("/api/assets/rejected");
 
       setRejectedAssets(
-        res.data.map((a) => ({
-          id: a.id,
-          assetType:
-            a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
-          type:
-            a.type === "EV"
-              ? "Electric Vehicle"
-              : a.type === "TREE"
-              ? "Trees"
-              : "Solar Panel",
-          status: "Rejected",
-          submittedBy: a.u_id,
-          submittedOn: new Date(a.created_at).toLocaleDateString(),
-        }))
-      );
+  res.data.map((a) => ({
+    id: a.id,
+    assetType:
+      a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
+    type:
+      a.type === "EV"
+        ? "Electric Vehicle"
+        : a.type === "TREE"
+        ? "Trees"
+        : "Solar Panel",
+    status: "Rejected",
+    submittedBy: a.u_id,
+    submittedOn: new Date(a.created_at).toLocaleDateString(),
+
+    // 🔥 REQUIRED
+    submittedByType: (a.submittedbytype || "individual").toLowerCase(),
+
+  }))
+);
+
     };
 
     loadRejected();
@@ -370,6 +390,8 @@ const AssetManagement = () => {
     const pages = totalPages(totalItems);
     if (pages <= 1) return null;
 
+
+    
     return (
       <div className="am26-pagination">
         <button

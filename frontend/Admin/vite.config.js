@@ -31,6 +31,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // ✅ ORG ASSET SERVICE (THIS FIXES YOUR ERROR)
+      '/api/org-assets': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
     }
   },
   build: {
