@@ -111,7 +111,6 @@ export const getAllOrgAssets = async (req, res) => {
         oa.plantation_id,
         oa.t_oid,
         oa.u_id,
-        u.name AS user_name,
         oa.location_lat,
         oa.location_long,
         oa.area_hactare,
@@ -126,17 +125,19 @@ export const getAllOrgAssets = async (req, res) => {
         ti.image_url,
         oa.created_at
       FROM org_assets oa
-      LEFT JOIN users u ON u.u_id = oa.u_id
-      LEFT JOIN tree_images ti ON ti.id = oa.image_id
+      LEFT JOIN tree_images ti 
+        ON ti.image_id = oa.image_id
       ORDER BY oa.created_at DESC
     `;
 
     const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
+    console.error("GET ALL ORG ASSETS ERROR:", err);
     res.status(500).json({ error: "Failed to fetch org assets" });
   }
 };
+
 
 /* =========================================================
    GET ORG ASSET BY ID
@@ -203,11 +204,14 @@ export const updateOrgAssetStatus = async (req, res) => {
     `;
 
     await query(sql, [status, id]);
-    res.json({ success: true });
+
+    return res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update status" });
+    console.error("ORG STATUS UPDATE ERROR:", err);
+    return res.status(500).json({ error: "Failed to update status" });
   }
 };
+
 
 /* =========================================================
    DELETE ORG ASSET
@@ -224,3 +228,65 @@ export const deleteOrgAsset = async (req, res) => {
     res.status(500).json({ error: "Delete failed" });
   }
 };
+
+
+/* =========================================================
+   GET ORG ASSETS FOR WORKFLOW (ADMIN)
+========================================================= */
+export const getOrgAssetsForWorkflow = async (req, res) => {
+  try {
+    const sql = `
+      SELECT
+        oa.plantation_id AS id,
+        'TREE' AS type,
+        oa.status,
+        oa.u_id,
+        oa.created_at AS submitted_on,
+        'organisation' AS submittedByType
+      FROM org_assets oa
+      WHERE oa.status IN ('pending', 'approved', 'rejected')
+      ORDER BY oa.created_at DESC
+    `;
+
+    const { rows } = await query(sql);
+    res.json(rows);
+  } catch (err) {
+    console.error("ORG WORKFLOW ERROR:", err);
+    res.status(500).json({ error: "Failed to load org workflow assets" });
+  }
+};
+export const getApprovedOrgAssets = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    let sql = `
+      SELECT
+        oa.plantation_id,
+        oa.u_id,
+        oa.status,
+        oa.created_at,
+        ti.image_id,
+        ti.image_url
+      FROM org_assets oa
+      LEFT JOIN tree_images ti
+        ON ti.image_id = oa.image_id
+    `;
+
+    const params = [];
+
+    if (status) {
+      sql += ` WHERE oa.status = $1`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY oa.created_at DESC`;
+
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error("ORG APPROVED ASSETS ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch org assets" });
+  }
+};
+
+
