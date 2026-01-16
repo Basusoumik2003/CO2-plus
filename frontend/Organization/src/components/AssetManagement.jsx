@@ -1087,13 +1087,13 @@ const AssetManagement = () => {
       <Dialog open={showAssetDetails} onOpenChange={setShowAssetDetails}>
         <DialogContent className="dialog-content-medium">
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-primary-light rounded-lg">
-                <LayersIcon className="text-primary w-5 h-5" />
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+              <div style={{ padding: "8px", backgroundColor: "#e0e7ff", borderRadius: "8px" }}>
+                <LayersIcon style={{ color: "#6366f1", width: "20px", height: "20px" }} />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold">Asset Details</DialogTitle>
-                <DialogDescription>
+                <DialogTitle style={{ fontSize: "1.25rem", fontWeight: "700", margin: 0 }}>Asset Details</DialogTitle>
+                <DialogDescription style={{ marginTop: "4px" }}>
                   Detailed technical and growth information
                 </DialogDescription>
               </div>
@@ -1101,18 +1101,18 @@ const AssetManagement = () => {
           </DialogHeader>
 
           {selectedAsset && (
-            <div className="asset-details-modal-content">
-              <div className="grid-2">
+            <div className="asset-details-modal-content" style={{ padding: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="detail-item">
                   <span className="detail-label">Asset ID</span>
-                  <span className="detail-value text-sm font-mono bg-gray-50 p-1 rounded border">
+                  <span className="detail-value" style={{ fontSize: "0.875rem", fontFamily: "monospace", backgroundColor: "#f9fafb", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e5e7eb" }}>
                     {selectedAsset.id}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Asset Type</span>
-                  <div className="flex items-center gap-2">
-                    <span className="badge bg-primary-light text-primary font-bold">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="badge" style={{ backgroundColor: "#e0e7ff", color: "#6366f1", fontWeight: "700", padding: "4px 12px", borderRadius: "6px" }}>
                       {selectedAsset.type}
                     </span>
                   </div>
@@ -1208,53 +1208,56 @@ const AssetManagement = () => {
 
                 <div className="detail-item">
                   <span className="detail-label">Verification Status</span>
-                  <div className="flex items-center gap-2">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {selectedAsset.verified ? (
-                      <span className="badge bg-green-light text-green-dark font-semibold">✓ Verified</span>
+                      <span className="badge" style={{ backgroundColor: "#d1fae5", color: "#065f46", fontWeight: "600", padding: "4px 12px", borderRadius: "6px" }}>✓ Verified</span>
                     ) : (
-                      <span className="badge bg-yellow-light text-yellow-dark font-semibold">⏳ Pending</span>
+                      <span className="badge" style={{ backgroundColor: "#fef3c7", color: "#92400e", fontWeight: "600", padding: "4px 12px", borderRadius: "6px" }}>⏳ Pending</span>
                     )}
                   </div>
                 </div>
 
-                <div className="detail-item col-span-2 bg-green-50 p-4 rounded-xl border border-green-100">
-                  <span className="detail-label text-green-800">Total Carbon Credits Generated</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="detail-value-highlight">
+                <div className="detail-item" style={{ gridColumn: "1 / -1", backgroundColor: "#ecfdf5", padding: "16px", borderRadius: "12px", border: "1px solid #a7f3d0" }}>
+                  <span className="detail-label" style={{ color: "#065f46" }}>Total Carbon Credits Generated</span>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                    <span className="detail-value-highlight" style={{ fontSize: "2rem", fontWeight: "700", color: "#059669" }}>
                       {selectedAsset.creditsGenerated.toLocaleString()}
                     </span>
-                    <span className="text-sm text-green-700 font-medium">Verified Credits</span>
+                    <span style={{ fontSize: "0.875rem", color: "#047857", fontWeight: "500" }}>Verified Credits</span>
                   </div>
                 </div>
               </div>
 
               {selectedAsset.type === "Trees" && selectedAsset.originalData?.photos?.length > 0 && (
-                <div className="mt-6">
-                  <span className="detail-label block mb-3">Plantation Evidence</span>
-                  <div className="relative group overflow-hidden rounded-xl border-4 border-white shadow-md">
+                <div style={{ marginTop: "24px" }}>
+                  <span className="detail-label" style={{ display: "block", marginBottom: "12px" }}>Plantation Evidence</span>
+                  <div style={{ position: "relative", overflow: "hidden", borderRadius: "12px", border: "4px solid white", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
                     <img
                       src={selectedAsset.originalData.photos[0]}
                       alt="Plantation"
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+                      style={{ width: "100%", height: "192px", objectFit: "cover", transition: "transform 0.5s" }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
                     />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
                   </div>
                 </div>
               )}
 
-              <div className="button-row">
+              <div className="button-row" style={{ display: "flex", gap: "16px", justifyContent: "flex-end", marginTop: "32px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" }}>
                 <button
                   className="view-fleet-btn"
                   onClick={() => navigate("/view-fleet")}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "10px 20px", borderRadius: "8px", fontSize: "0.875rem", fontWeight: "600", cursor: "pointer", transition: "all 0.2s", minWidth: "140px", backgroundColor: "transparent", color: "#6366f1", border: "2px solid #6366f1" }}
                 >
-                  <FleetIcon className="w-5 h-5" />
+                  <FleetIcon style={{ width: "20px", height: "20px" }} />
                   View Fleet
                 </button>
                 <button
                   className="update-asset-btn"
                   onClick={handleOpenUpdateModal}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "10px 20px", borderRadius: "8px", fontSize: "0.875rem", fontWeight: "600", cursor: "pointer", transition: "all 0.2s", minWidth: "140px", backgroundColor: "transparent", color: "#10b981", border: "2px solid #10b981" }}
                 >
-                  <UpdateIcon className="w-5 h-5" />
+                  <UpdateIcon style={{ width: "20px", height: "20px" }} />
                   Update Details
                 </button>
               </div>

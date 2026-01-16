@@ -1194,7 +1194,7 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   padding: clamp(8px, 2vw, 1rem);
 }
 .dialog-content {
@@ -1207,6 +1207,7 @@ body::after {
   position: relative;
   width: 100%;
   max-width: clamp(400px, 80vw, 500px);
+  padding: clamp(12px, 2vw, 1.5rem);
 }
 .dialog-content-medium { max-width: clamp(500px, 85vw, 600px); }
 .dialog-content-large { max-width: clamp(600px, 90vw, 800px); }
@@ -1221,9 +1222,14 @@ body::after {
   padding: clamp(4px, 1vw, 0.5rem);
   border-radius: 6px;
   transition: all 0.2s ease;
+  z-index: 10;
 }
 .dialog-close:hover { background-color: var(--color-bg-tertiary); color: var(--color-text); }
-.dialog-header { padding: clamp(12px, 2vw, 1.5rem) clamp(12px, 2vw, 1.5rem) 0 clamp(12px, 2vw, 1.5rem); }
+.dialog-header { 
+  padding: 0 0 clamp(12px, 2vw, 1.5rem) 0;
+  margin-bottom: clamp(12px, 2vw, 1.5rem);
+  border-bottom: 1px solid var(--color-border);
+}
 .dialog-title {
   font-size: clamp(1rem, 3vw, 1.25rem);
   font-weight: 600;
@@ -1235,8 +1241,6 @@ body::after {
   margin: clamp(4px, 1vw, 0.5rem) 0 0 0;
   font-size: clamp(0.75rem, 2vw, 0.875rem);
 }
-.dialog-content > div { padding: clamp(12px, 2vw, 1.5rem); }
-.dialog-content > div:first-child { padding-top: 0; }
 
 /* Select Styles */
 .select {
@@ -1304,8 +1308,6 @@ body::after {
 }
 .asset-details-modal-content {
   position: relative;
-  min-height: clamp(300px, 50vh, 350px);
-  padding-bottom: clamp(4rem, 8vw, 5rem);
 }
 
 /* Export Dropdown */

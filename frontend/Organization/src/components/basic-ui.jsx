@@ -182,6 +182,7 @@ export const DialogContent = ({ className = "", children, open, onOpenChange, ..
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={handleBackdropClick}
+      style={{ zIndex: 9999 }}
     >
       <motion.div
         className={`dialog-content ${className}`}
@@ -191,6 +192,7 @@ export const DialogContent = ({ className = "", children, open, onOpenChange, ..
         transition={{ duration: 0.3 }}
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
         {...props}
       >
         <button
@@ -202,7 +204,7 @@ export const DialogContent = ({ className = "", children, open, onOpenChange, ..
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <div>{children}</div>
+        {children}
       </motion.div>
     </motion.div>,
     document.body
