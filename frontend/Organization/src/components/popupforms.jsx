@@ -216,73 +216,71 @@ const PopupForms = ({
 
 
   const handlePlantationSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    // Get user ID from localStorage
-    const U_ID = localStorage.getItem("userId");
-    if (!U_ID) {
-      showToast("User ID not found. Please log in first.", "error");
-      return;
-    }
+  const u_id = localStorage.getItem("userId");
+  if (!u_id) {
+    showToast("User not logged in", "error");
+    return;
+  }
 
-    try {
-      let imageUrls = [];
+  try {
+    let image_id = null;
 
-      // ✅ Upload images if photos exist
-      if (plantationData.photos && plantationData.photos.length > 0) {
-        const formData = new FormData();
-        plantationData.photos.forEach((photo) => {
-          const blob = dataURLtoBlob(photo);
-          formData.append('images', blob);
-        });
+    // 1️⃣ Upload image (take FIRST image only)
+    if (plantationData.photos?.length > 0) {
+      const formData = new FormData();
 
-        const imageData = await assetAPI.uploadImage(formData);
+      const blob = dataURLtoBlob(plantationData.photos[0]);
+      formData.append("images", blob);
 
-        if (imageData.status !== 'success') {
-          showToast(imageData.message || 'Failed to upload images.', 'error');
-          return;
-        }
+      const imageRes = await assetAPI.uploadImage(formData);
 
-        console.log('✅ Uploaded images:', imageData.imageUrls);
-        imageUrls = imageData.imageUrls;
+      if (imageRes.status !== "success") {
+        showToast("Image upload failed", "error");
+        return;
       }
 
-      // ✅ Plantation payload
-      const payload = {
-        U_ID,
-        location_lat: parseFloat(plantationData.location_lat),
-        location_long: parseFloat(plantationData.location_long),
-        area_hactare: parseFloat(plantationData.area_hactare),
-        species_Name: plantationData.species_Name,
-        trees_planted: parseInt(plantationData.trees_planted),
-        avg_height: parseFloat(plantationData.avg_height),
-        avg_dbh: parseFloat(plantationData.avg_dbh),
-        survival_rate: parseFloat(plantationData.survival_rate),
-        plantation_date: plantationData.plantation_date,
-        Base_line_Land: plantationData.Base_line_Land,
-        ImageId: imageUrls,
-      };
-
-      console.log('✅ Submitting Plantation Payload:', payload);
-
-      // ✅ Plantation save request (you'll need to add this to assetAPI)
-      const result = await assetAPI.createPlantation(payload);
-
-      if (result.status === 'success') {
-        showToast('Plantation data saved successfully!', 'success');
-        // Handle save callback if provided
-        if (typeof handleSavePlantation === 'function') {
-          handleSavePlantation(result.data);
-        }
-      } else {
-        showToast(result.message || 'Failed to save plantation data.', 'error');
-      }
-
-    } catch (error) {
-      console.error(error);
-      showToast('Server error!', 'error');
+      image_id = imageRes.imageIds[0]; // ✅ SINGLE image_id
     }
-  };
+
+    // 2️⃣ Build ORG ASSET payload
+    const payload = {
+      plantationId: crypto.randomUUID(),   // ✅ REQUIRED
+      t_oid: `TREE-${Date.now()}`,          // ✅ REQUIRED
+      u_id,                                // ✅ MATCH DB
+      location_lat: Number(plantationData.location_lat),
+      location_long: Number(plantationData.location_long),
+      area_hactare: Number(plantationData.area_hactare),
+      species_Name: plantationData.species_Name,
+      trees_planted: Number(plantationData.trees_planted),
+      avg_height: Number(plantationData.avg_height),
+      avg_dbh: Number(plantationData.avg_dbh),
+      survival_rate: Number(plantationData.survival_rate),
+      plantation_date: plantationData.plantation_date,
+      Base_line_Land: plantationData.Base_line_Land,
+      ImageId: image_id,
+    };
+
+    console.log("🌱 ORG ASSET PAYLOAD:", payload);
+
+    // 3️⃣ Call ORG ASSET backend (PORT 5000)
+    const result = await assetAPI.createOrgAsset(payload);
+
+    if (result.success) {
+      showToast("Plantation saved successfully!", "success");
+      handleSavePlantation?.(result.data);
+      setActivePlantationPopup(false);
+    } else {
+      showToast(result.error || "Failed to save plantation", "error");
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast("Server error", "error");
+  }
+};
+
 
   // ✅ Helper function: dataURL to Blob
   function dataURLtoBlob(dataURL) {

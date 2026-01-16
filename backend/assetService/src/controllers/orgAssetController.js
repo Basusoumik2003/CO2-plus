@@ -141,30 +141,29 @@ export const getAllOrgAssets = async (req, res) => {
 /* =========================================================
    GET ORG ASSET BY ID
 ========================================================= */
-export const getOrgAssetById = async (req, res) => {
+export const getOrgAssetsByUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { u_id } = req.params;
 
     const sql = `
-      SELECT
-        oa.*,
-        u.name AS user_name,
-        ti.image_url
-      FROM org_assets oa
-      LEFT JOIN users u ON u.u_id = oa.u_id
-      LEFT JOIN tree_images ti ON ti.id = oa.image_id
-      WHERE oa.plantation_id = $1
+      SELECT *
+      FROM org_assets
+      WHERE u_id = $1
+      ORDER BY created_at DESC
     `;
 
-    const { rows } = await query(sql, [id]);
+    const { rows } = await query(sql, [u_id]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Org asset not found" });
-    }
-
-    res.json(rows[0]);
+    res.json({
+      success: true,
+      data: rows,
+    });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch org asset" });
+    console.error("ORG ASSET FETCH ERROR:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch org assets",
+    });
   }
 };
 

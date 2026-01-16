@@ -4,6 +4,10 @@ const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 // API service for fetching assets
 export const assetAPI = {
+
+
+
+  
   // Fetch all EVs for a user
   getEVs: async (userId) => {
     try {
@@ -25,6 +29,35 @@ export const assetAPI = {
       throw error;
     }
   },
+ createOrgAsset: async (payload) => {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch("http://localhost:5000/api/org-assets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return response.json();
+  },
+
+  getOrgAssetsByUser: async (userId) => {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `http://localhost:5000/api/org-assets/user/${userId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return res.json();
+},
 
   // Fetch all Trees for a user
   getTrees: async (userId) => {
