@@ -84,8 +84,8 @@ const getDetailsUrl = (asset) => {
           rejected: Number(metricsRes.data.rejected),
         });
 
-       setWorkflowAssets(
-  workflowRes.data.map((a) => {
+        setWorkflowAssets(
+  workflowRes.data.map((a, index) => {
     const assetType =
       a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
 
@@ -94,10 +94,13 @@ const getDetailsUrl = (asset) => {
         ? "Pending Review"
         : a.status === "pending_approval"
         ? "Pending Approval"
-        : "Rejected";
+        : a.status === "rejected"
+        ? "Rejected"
+        : "Pending Review";
 
     return {
       id: a.id,
+      _uiKey: `${assetType}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
       assetType,
       type:
         a.type === "EV"
@@ -108,38 +111,36 @@ const getDetailsUrl = (asset) => {
       status,
       submittedBy: a.u_id,
       submittedOn: new Date(a.submitted_on).toLocaleDateString(),
-
-      // 🔥 ADD THIS
-     submittedByType: (a.submittedbytype || "individual").toLowerCase(),
-
-
     };
   })
 );
 
+
         setApprovedAssets(
-          approvedRes.data.map((a) => ({
-            id: a.id,
-            assetType:
-              a.type === "EV"
-                ? "ev"
-                : a.type === "TREE"
-                ? "tree"
-                : "solar",
-            type:
-              a.type === "EV"
-                ? "Electric Vehicle"
-                : a.type === "TREE"
-                ? "Trees"
-                : "Solar Panel",
-            status: "Approved",
-            submittedBy: a.u_id,
-            submittedOn: new Date(a.created_at).toLocaleDateString(),
-            submittedByType: (a.submittedbytype || "individual").toLowerCase(),
+  approvedRes.data.map((a, index) => ({
+    id: a.id,
+    _uiKey: `approved-${a.type}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
+    assetType:
+      a.type === "EV"
+        ? "ev"
+        : a.type === "TREE"
+        ? "tree"
+        : "solar",
+    type:
+      a.type === "EV"
+        ? "Electric Vehicle"
+        : a.type === "TREE"
+        ? "Trees"
+        : "Solar Panel",
+    status: "Approved",
+    submittedBy: a.u_id,
+    submittedOn: new Date(a.created_at).toLocaleDateString(),
+    submittedByType: a.submittedByType || "individual",
+  }))
+);
 
 
-          }))
-        );
+
       } catch (err) {
         console.error("Failed to load asset data", err);
       }
@@ -320,8 +321,9 @@ const getDetailsUrl = (asset) => {
       const res = await axios.get("/api/assets/rejected");
 
       setRejectedAssets(
-  res.data.map((a) => ({
+  res.data.map((a, index) => ({
     id: a.id,
+    _uiKey: `rejected-${a.type}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
     assetType:
       a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
     type:
@@ -754,7 +756,8 @@ const getDetailsUrl = (asset) => {
               <>
                 {pendingPaged.map((asset) => (
                   <div
-                    key={`pending-${asset.id}`}
+                    key={asset._uiKey}               // ✅
+
                     className="am26-workflow-item am26-card-hover am26-workflow-pending"
                   >
                     <div className="am26-workflow-main">
@@ -827,7 +830,8 @@ const getDetailsUrl = (asset) => {
               <>
                 {pendingApprovalPaged.map((asset) => (
                   <div
-                    key={`approval-${asset.id}`}
+                    key={asset._uiKey}               // ✅
+
                     className="am26-workflow-item am26-card-hover am26-workflow-approval"
                   >
                     <div className="am26-workflow-main">
@@ -877,7 +881,7 @@ const getDetailsUrl = (asset) => {
               <>
                 {rejectedPaged.map((asset) => (
                   <div
-                    key={`rejected-${asset.id}`}
+                    key={asset._uiKey}               // ✅
                     className="am26-workflow-item am26-card-hover am26-workflow-rejected"
                   >
                     <div className="am26-workflow-main">
@@ -1007,7 +1011,8 @@ const getDetailsUrl = (asset) => {
             <>
               {approvedPaged.map((asset) => (
                 <div
-                  key={asset.id}
+                 key={asset._uiKey}// ✅
+
                   className="am26-approved-item am26-card-hover"
                 >
                   <div className="am26-approved-left">
