@@ -70,56 +70,62 @@ const AssetManagement = () => {
         });
 
         setWorkflowAssets(
-          workflowRes.data.map((a) => {
-            const assetType =
-              a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
+  workflowRes.data.map((a, index) => {
+    const assetType =
+      a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar";
 
-            const status =
-              a.status === "pending"
-                ? "Pending Review"
-                : a.status === "pending_approval"
-                ? "Pending Approval"
-                : a.status === "rejected"
-                ? "Rejected"
-                : "Pending Review";
+    const status =
+      a.status === "pending"
+        ? "Pending Review"
+        : a.status === "pending_approval"
+        ? "Pending Approval"
+        : a.status === "rejected"
+        ? "Rejected"
+        : "Pending Review";
 
-            return {
-              id: a.id,
-              assetType,
-              type:
-                a.type === "EV"
-                  ? "Electric Vehicle"
-                  : a.type === "TREE"
-                  ? "Trees"
-                  : "Solar Panel",
-              status,
-              submittedBy: a.u_id,
-              submittedOn: new Date(a.submitted_on).toLocaleDateString(),
-            };
-          })
-        );
+    return {
+      id: a.id,
+      _uiKey: `${assetType}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
+      assetType,
+      type:
+        a.type === "EV"
+          ? "Electric Vehicle"
+          : a.type === "TREE"
+          ? "Trees"
+          : "Solar Panel",
+      status,
+      submittedBy: a.u_id,
+      submittedOn: new Date(a.submitted_on).toLocaleDateString(),
+    };
+  })
+);
+
 
         setApprovedAssets(
-          approvedRes.data.map((a) => ({
-            id: a.id,
-            assetType:
-              a.type === "EV"
-                ? "ev"
-                : a.type === "TREE"
-                ? "tree"
-                : "solar",
-            type:
-              a.type === "EV"
-                ? "Electric Vehicle"
-                : a.type === "TREE"
-                ? "Trees"
-                : "Solar Panel",
-            status: "Approved",
-            submittedBy: a.u_id,
-            submittedOn: new Date(a.created_at).toLocaleDateString(),
-            submittedByType: a.submittedByType || "individual",
-          }))
-        );
+  approvedRes.data.map((a, index) => ({
+    id: a.id,
+    _uiKey: `approved-${a.type}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
+    assetType:
+      a.type === "EV"
+        ? "ev"
+        : a.type === "TREE"
+        ? "tree"
+        : "solar",
+    type:
+      a.type === "EV"
+        ? "Electric Vehicle"
+        : a.type === "TREE"
+        ? "Trees"
+        : "Solar Panel",
+    status: "Approved",
+    submittedBy: a.u_id,
+    submittedOn: new Date(a.created_at).toLocaleDateString(),
+    submittedByType: a.submittedByType || "individual",
+  }))
+);
+
+
+
       } catch (err) {
         console.error("Failed to load asset data", err);
       }
@@ -305,21 +311,23 @@ const AssetManagement = () => {
       const res = await axios.get("/api/assets/rejected");
 
       setRejectedAssets(
-        res.data.map((a) => ({
-          id: a.id,
-          assetType:
-            a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
-          type:
-            a.type === "EV"
-              ? "Electric Vehicle"
-              : a.type === "TREE"
-              ? "Trees"
-              : "Solar Panel",
-          status: "Rejected",
-          submittedBy: a.u_id,
-          submittedOn: new Date(a.created_at).toLocaleDateString(),
-        }))
-      );
+  res.data.map((a, index) => ({
+    id: a.id,
+    _uiKey: `rejected-${a.type}-${a.id}-${a.u_id}-${index}`, // ✅ ADD THIS
+    assetType:
+      a.type === "EV" ? "ev" : a.type === "TREE" ? "tree" : "solar",
+    type:
+      a.type === "EV"
+        ? "Electric Vehicle"
+        : a.type === "TREE"
+        ? "Trees"
+        : "Solar Panel",
+    status: "Rejected",
+    submittedBy: a.u_id,
+    submittedOn: new Date(a.created_at).toLocaleDateString(),
+  }))
+);
+
     };
 
     loadRejected();
@@ -732,7 +740,8 @@ const AssetManagement = () => {
               <>
                 {pendingPaged.map((asset) => (
                   <div
-                    key={`pending-${asset.id}`}
+                    key={asset._uiKey}               // ✅
+
                     className="am26-workflow-item am26-card-hover am26-workflow-pending"
                   >
                     <div className="am26-workflow-main">
@@ -805,7 +814,8 @@ const AssetManagement = () => {
               <>
                 {pendingApprovalPaged.map((asset) => (
                   <div
-                    key={`approval-${asset.id}`}
+                    key={asset._uiKey}               // ✅
+
                     className="am26-workflow-item am26-card-hover am26-workflow-approval"
                   >
                     <div className="am26-workflow-main">
@@ -855,7 +865,7 @@ const AssetManagement = () => {
               <>
                 {rejectedPaged.map((asset) => (
                   <div
-                    key={`rejected-${asset.id}`}
+                    key={asset._uiKey}               // ✅
                     className="am26-workflow-item am26-card-hover am26-workflow-rejected"
                   >
                     <div className="am26-workflow-main">
@@ -985,7 +995,8 @@ const AssetManagement = () => {
             <>
               {approvedPaged.map((asset) => (
                 <div
-                  key={asset.id}
+                 key={asset._uiKey}// ✅
+
                   className="am26-approved-item am26-card-hover"
                 >
                   <div className="am26-approved-left">
