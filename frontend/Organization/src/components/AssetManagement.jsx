@@ -38,9 +38,31 @@ import {
   FiCalendar,
   FiSettings,
   FiPlus,
+   FiMapPin, 
 } from "react-icons/fi";
 import { FaTree, FaCar, FaIndustry, FaLeaf } from "react-icons/fa";
 import AssetTopBar from "./AssetTopBar";
+
+const mapOrgAssets = (orgAssets = []) => {
+  return orgAssets.map((a) => ({
+    id: a.plantation_id,
+    name: a.species_name,
+    type: "Trees",
+
+    status: a.status === "approved" ? "Active" : "Maintenance",
+    verified: a.status === "approved",
+
+    creditsGenerated: Math.round(
+      (a.trees_planted || 0) * 0.02
+    ),
+
+    location: `${a.location_lat}, ${a.location_long}`,
+    lastUpdated: new Date(a.updated_at).toLocaleDateString(),
+
+    originalData: a,
+  }));
+};
+
 
 
 // SVG Icons
@@ -683,27 +705,39 @@ const AssetManagement = () => {
   const userId = localStorage.getItem("userId");
 
   // Fetch assets from backend
-  const fetchAssets = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      if (!userId) {
-        setError("User ID not found. Please log in.");
-        setLoading(false);
-        return;
-      }
+ const fetchAssets = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const fetchedAssets = await assetAPI.getAllAssets(userId);
-      setAssets(fetchedAssets);
-    } catch (err) {
-      console.error("Error fetching assets:", err);
-      setError("Failed to load assets. Please try again.");
-      setAssets([]);
-    } finally {
+    if (!userId) {
+      setError("User ID not found. Please log in.");
       setLoading(false);
+      return;
     }
-  };
+
+    // 1️⃣ Existing assets (EV + Solar + old Trees)
+    const baseAssets = await assetAPI.getAllAssets(userId);
+
+    // 2️⃣ ORG plantation assets
+    const orgRes = await assetAPI.getOrgAssetsByUser(userId);
+
+    const orgAssets =
+      orgRes?.success && Array.isArray(orgRes.data)
+        ? mapOrgAssets(orgRes.data)
+        : [];
+
+    // 3️⃣ Merge all assets
+    setAssets([...baseAssets, ...orgAssets]);
+  } catch (err) {
+    console.error("Error fetching assets:", err);
+    setError("Failed to load assets. Please try again.");
+    setAssets([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Load assets on component mount
   React.useEffect(() => {

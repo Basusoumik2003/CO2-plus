@@ -4,7 +4,8 @@ const morgan = require("morgan");
 const config = require("./config/env");
 const logger = require("./utils/logger");
 const assetRoutes = require("./routes/assetRoutes");
- 
+ const orgAssetRoutes = require("./routes/orgAssetRoutes");
+
 
 
 // Security middleware
@@ -64,7 +65,7 @@ if (config.nodeEnv === "development") {
 
 //asset management route 
 app.use("/api/assets", assetRoutes);
-
+app.use("/api/org-assets", orgAssetRoutes);
 
 // Root
 app.get("/", (req, res) => {
