@@ -10,6 +10,7 @@ const {
   deleteOrgAsset,
   getOrgAssetsForWorkflow,
   getApprovedOrgAssets,
+  getOrgAssetById,
 } = require("../controllers/orgAssetController");
 
 /**
@@ -37,8 +38,9 @@ router.get("/all", getAllOrgAssets);
 router.put("/:id/status", updateOrgAssetStatus);
 
 // DELETE
-router.delete("/:id", deleteOrgAsset);
+router.delete("/:id/delete", deleteOrgAsset);
 
+router.get("/:id/details", getOrgAssetById);
 
 
 module.exports = router;
