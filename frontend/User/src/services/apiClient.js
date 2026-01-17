@@ -4,7 +4,7 @@ export const API_CONFIG = {
   ASSET_API:
     (import.meta.env.VITE_ASSET_SERVICE_URL || 'http://localhost:5000') + '/api/v1', // ✅ /api/v1 added
   AUTH_API:
-    import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5002',
+    import.meta.env.VITE_AUTH_SERVICE_URL || 'https://authentication-1021467247424.asia-south1.run.app',
   NOTIFICATION_API:
     import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5001',
 };

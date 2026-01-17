@@ -4,5 +4,4 @@ logs
 .env
 .git
 .gitignore
-Dockerfile
 .dockerignore

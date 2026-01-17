@@ -4,7 +4,7 @@ import "../styles/Login.css";
 import { RxCross1 } from "react-icons/rx";
 
 const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
+  const API_URL = import.meta.env.VITE_AUTH_SERVICE_URL || "http://localhost:5002";
 
   const [formData, setFormData] = useState({
     email: "",
