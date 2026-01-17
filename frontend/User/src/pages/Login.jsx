@@ -4,7 +4,10 @@ import "../styles/Login.css";
 import { RxCross1 } from "react-icons/rx";
 
 const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
-  const API_URL = import.meta.env.VITE_AUTH_SERVICE_URL || "http://localhost:5002";
+  // 🔥 LIVE AUTH SERVICE ONLY
+ const API_URL =
+  import.meta.env.VITE_AUTH_SERVICE_URL || "http://localhost:5002";
+
 
   const [formData, setFormData] = useState({
     email: "",
@@ -54,9 +57,14 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
     setErrors({});
 
     try {
+      // 🔍 DEBUG PROOF
+      console.log("🔵 API URL USED:", API_URL);
+      console.log("🚀 LOGIN ATTEMPT STARTED");
+
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email: formData.email.toLowerCase().trim(),
           password: formData.password,
@@ -81,14 +89,13 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
         return;
       }
 
-      // ✅ Save auth
+      // ✅ Save auth data
       localStorage.setItem("token", data.token);
+      localStorage.setItem("authToken", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("userId", data.user.u_id);
-      localStorage.setItem("authToken", data.token);
       setCookie("authToken", data.token);
 
-      // ✅ IMPORTANT FIX
       if (onLogin) onLogin(data.token, data.user);
       if (onClose) onClose();
 
@@ -112,7 +119,6 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
           navigate("/userDashboard");
           break;
 
-        case "ORGANIZATION":
         case "ORGANIZATION":
           navigate("/orgDashboard");
           break;

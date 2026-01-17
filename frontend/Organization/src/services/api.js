@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+const API_BASE_URL = 'https://asset-service2026.onrender.com/api/v1';
 
 // API service for fetching assets
 export const assetAPI = {
@@ -32,7 +32,7 @@ export const assetAPI = {
  createOrgAsset: async (payload) => {
     const token = localStorage.getItem("token");
 
-    const response = await fetch("http://localhost:5000/api/org-assets", {
+    const response = await fetch("https://asset-service2026.onrender.com/api/org-assets", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -48,7 +48,7 @@ export const assetAPI = {
   const token = localStorage.getItem("token");
 
   const res = await fetch(
-    `http://localhost:5000/api/org-assets/user/${userId}`,
+    `https://asset-service2026.onrender.com/api/org-assets/user/${userId}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,

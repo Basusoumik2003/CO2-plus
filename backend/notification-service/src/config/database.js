@@ -4,6 +4,9 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // Create connection pool
 const pool = new Pool({
+  ssl:{
+    rejectUnauthorized: false
+  },
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT),
   database: process.env.DB_NAME,

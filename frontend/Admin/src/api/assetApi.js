@@ -1,19 +1,16 @@
 import axios from "axios";
+import { ASSET_SERVICE } from "../config/services";
 
-const API_BASE = "http://localhost:5000";
+const assetClient = axios.create({
+  baseURL: ASSET_SERVICE,
+  timeout: 15000,
+  headers: { "Content-Type": "application/json" },
+});
 
-export const fetchMetrics = () =>
-  axios.get(`${API_BASE}/api/assets/metrics`);
+assetClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-export const fetchWorkflowAssets = () =>
-  axios.get(`${API_BASE}/api/assets/workflow`);
-
-export const fetchApprovedAssets = (type) =>
-  axios.get(`${API_BASE}/api/assets/approved`, {
-    params: { type },
-  });
-
-export const updateAssetStatus = (type, id, status) =>
-  axios.patch(`${API_BASE}/api/assets/${type}/${id}/status`, {
-    status,
-  });
+export default assetClient;
