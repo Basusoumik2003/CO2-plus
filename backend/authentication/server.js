@@ -59,7 +59,8 @@ app.use(
 );
 
 // ✅ IMPORTANT: allow preflight for all routes
-app.options("*", cors());
+app.options("/*", cors());
+
 
 // ==================== BODY PARSING ====================
 app.use(express.json());
