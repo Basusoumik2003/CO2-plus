@@ -39,13 +39,19 @@ app.use(
       // Allow server-to-server, Postman, curl, mobile apps
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.log(`❌ CORS blocked: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        normalizedOrigin.endsWith(".onrender.com")
+      ) {
+        return callback(null, true);
       }
+
+      console.log(`❌ CORS blocked: ${normalizedOrigin}`);
+      callback(new Error("Not allowed by CORS"));
     },
+
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
