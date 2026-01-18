@@ -37,14 +37,14 @@ const App = () => {
       const userId = localStorage.getItem("userId");
       const token = localStorage.getItem("token");
       // Pass session data to Org App
-      window.location.href = `http://localhost:5174/?userId=${userId}&token=${token}`;
+      window.location.href = `https://org-carbonpositive2026.onrender.com/?userId=${userId}&token=${token}`;
     }, []);
     return <p>Redirecting to Organization Dashboard...</p>;
   };
 
   const RedirectToAdmin = () => {
     useEffect(() => {
-      window.location.href = "http://localhost:3001/";
+      window.location.href = "https://admin-carbonpositive2026.onrender.com";
     }, []);
     return <p>Redirecting to Admin Dashboard...</p>;
   };

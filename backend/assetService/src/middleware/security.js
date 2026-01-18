@@ -3,14 +3,37 @@ const cors = require("cors");
 const config = require("../config/env");
 
 /**
- * CORS configuration
+ * ================================
+ * CORS CONFIGURATION
+ * ================================
  */
+const allowedOrigins = [
+  // 🔹 Local development
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+
+  // 🔹 Production frontends (Render)
+  "https://user-carbonpositive2026.onrender.com",
+  "https://org-carbonpositive2026.onrender.com",
+  "https://admin-carbonpositive2026.onrender.com",
+
+  // 🔹 Custom domain (optional)
+  "https://www.gocarbonpositive.com",
+
+  // 🔹 From environment
+  config.frontendUrl || process.env.FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // allow non-browser tools (Thunder, Postman)
+    // Allow non-browser tools (Postman, curl, mobile apps)
     if (!origin) return callback(null, true);
 
-    // allow all localhost ports (3000, 3001, etc.)
+    // Allow all localhost automatically
     if (
       origin.startsWith("http://localhost") ||
       origin.startsWith("http://127.0.0.1")
@@ -18,6 +41,12 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Allow production frontends
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.log(`❌ CORS blocked: ${origin}`);
     callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -25,9 +54,10 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-
 /**
- * Security headers configuration
+ * ================================
+ * SECURITY HEADERS
+ * ================================
  */
 const helmetConfig = helmet({
   contentSecurityPolicy: {
@@ -36,7 +66,11 @@ const helmetConfig = helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-      connectSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "https://authentication-service2026.onrender.com",
+        "https://notification-service2026.onrender.com"
+      ],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -48,16 +82,19 @@ const helmetConfig = helmet({
 });
 
 /**
- * Request sanitization
+ * ================================
+ * REQUEST SANITIZATION
+ * ================================
  */
 const sanitizeRequest = (req, res, next) => {
-  // Skip sanitization for multipart/form-data (file uploads)
-  // Multer will handle these requests
-  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+  // Skip sanitization for multipart/form-data
+  if (
+    req.headers["content-type"] &&
+    req.headers["content-type"].includes("multipart/form-data")
+  ) {
     return next();
   }
 
-  // Remove any null bytes from strings
   const sanitize = (obj) => {
     if (typeof obj === "string") {
       return obj.replace(/\0/g, "");
@@ -70,10 +107,10 @@ const sanitizeRequest = (req, res, next) => {
     return obj;
   };
 
-  // Only sanitize if body exists and is not a file upload
-  if (req.body && typeof req.body === 'object') {
+  if (req.body && typeof req.body === "object") {
     req.body = sanitize(req.body);
   }
+
   req.params = sanitize(req.params);
   req.query = sanitize(req.query);
 

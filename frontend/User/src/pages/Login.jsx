@@ -124,7 +124,7 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
           break;
 
         case "ADMIN":
-          window.location.href = "http://localhost:3001/";
+          window.location.href = "https://admin-carbonpositive2026.onrender.com";
           break;
 
         default:
