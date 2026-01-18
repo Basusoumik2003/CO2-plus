@@ -51,16 +51,13 @@ app.use(
       console.log(`❌ CORS blocked: ${normalizedOrigin}`);
       callback(new Error("Not allowed by CORS"));
     },
-
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// ✅ IMPORTANT: allow preflight for all routes
-app.options("/*", cors());
-
+// ❌ DO NOT add app.options("*") or app.options("/*") on Node 22
 
 // ==================== BODY PARSING ====================
 app.use(express.json());
