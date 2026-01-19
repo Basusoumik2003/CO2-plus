@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+=======
+import { Routes, Route, useLocation } from "react-router-dom";
+>>>>>>> a63bbfd53c958a9ee96b21d2c5af1d4ee469e56c
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
@@ -29,45 +33,40 @@ import CaseStudy from "./pages/CaseStudy";
 import LoginPopup from "./pages/Login";
 import SignupPopup from "./pages/Signup";
 
-/* ---------------- LOGOUT PAGE ---------------- */
-
-const Logout = () => {
-  useEffect(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.replace("/");
-  }, []);
-
-  return <p>Logging out...</p>;
-};
-
-/* ---------------- REDIRECTS ---------------- */
-
-const RedirectToOrg = () => {
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      window.location.replace("/");
-      return;
-    }
-
-    window.location.href = `https://org-carbonpositive2026.onrender.com/?userId=${userId}&token=${token}`;
-  }, []);
-
-  return <p>Redirecting to Organization Dashboard...</p>;
-};
-
-const RedirectToAdmin = () => {
-  window.location.href = "https://admin-carbonpositive2026.onrender.com";
-  return <p>Redirecting to Admin...</p>;
-};
-
-/* ---------------- MAIN APP ---------------- */
-
 const App = () => {
   const location = useLocation();
+
+  /* =======================
+     EXTERNAL REDIRECTS
+  ======================= */
+
+  const RedirectToOrg = () => {
+    useEffect(() => {
+      const userId = localStorage.getItem("userId");
+      const token = localStorage.getItem("token");
+      window.location.href = `https://org-carbonpositive2026.onrender.com/?userId=${userId}&token=${token}`;
+    }, []);
+    return <p>Redirecting to Organization Dashboard...</p>;
+  };
+
+  const RedirectToAdmin = () => {
+    useEffect(() => {
+      window.location.href = "https://admin-carbonpositive2026.onrender.com";
+    }, []);
+    return <p>Redirecting to Admin Dashboard...</p>;
+  };
+
+  const Logout = () => {
+    useEffect(() => {
+      localStorage.clear();
+      window.location.href = "/";
+    }, []);
+    return <p>Logging out...</p>;
+  };
+
+  /* =======================
+     AUTH STATE
+  ======================= */
 
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("token")
@@ -76,13 +75,11 @@ const App = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
 
-  // Load user on refresh
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
-  // Sync auth across tabs
   useEffect(() => {
     const handleStorageChange = () => {
       const token = localStorage.getItem("token");
@@ -91,10 +88,8 @@ const App = () => {
       const savedUser = localStorage.getItem("user");
       setUser(savedUser ? JSON.parse(savedUser) : null);
     };
-
     window.addEventListener("storage", handleStorageChange);
-    return () =>
-      window.removeEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const handleAuthChange = (token, userData = null) => {
@@ -117,6 +112,10 @@ const App = () => {
     setIsAuthenticated(!!localStorage.getItem("token"));
   }, [location.pathname]);
 
+  /* =======================
+     NAVBAR VISIBILITY
+  ======================= */
+
   const shouldHideNavbar = () => {
     const hideNavbarRoutes = [
       "/userDashboard",
@@ -126,6 +125,10 @@ const App = () => {
     if (location.pathname.startsWith("/games")) return true;
     return hideNavbarRoutes.includes(location.pathname);
   };
+
+  /* =======================
+     RENDER
+  ======================= */
 
   return (
     <>
@@ -146,9 +149,7 @@ const App = () => {
       {showLogin && (
         <LoginPopup
           onClose={() => setShowLogin(false)}
-          onLogin={(token, userData) =>
-            handleAuthChange(token, userData)
-          }
+          onLogin={(token, userData) => handleAuthChange(token, userData)}
           onSwitchToSignup={() => {
             setShowLogin(false);
             setShowSignup(true);
@@ -159,9 +160,7 @@ const App = () => {
       {showSignup && (
         <SignupPopup
           onClose={() => setShowSignup(false)}
-          onSignup={(token, userData) =>
-            handleAuthChange(token, userData)
-          }
+          onSignup={(token, userData) => handleAuthChange(token, userData)}
           onSwitchToLogin={() => {
             setShowSignup(false);
             setShowLogin(true);
@@ -183,7 +182,6 @@ const App = () => {
         <Route path="/upload" element={<Upload />} />
         <Route path="/blog" element={<Blog isAuthenticated={isAuthenticated} />} />
         <Route path="/blog/:id" element={<BlogDetailPage />} />
-
         <Route path="/engage" element={<Engage />} />
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/profile" element={<Profile />} />
