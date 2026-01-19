@@ -30,23 +30,30 @@ const Home = ({ isAuthenticated, user }) => {
 
   // ✅ Check if user is already logged in on component mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem("token");
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-    if (token && storedUser && storedUser.status) {
-      // Redirect based on user status
-      if (storedUser.status === 'pending') {
-        navigate('/pending-approval');
-      } else if (storedUser.status === 'active') {
-        // Redirect based on role
-        if (storedUser.role_name === 'ORGANIZATION' || storedUser.role === 'organization') {
-          navigate('/orgDashboard');
-        } else {
-          navigate('/userDashboard');
-        }
-      }
+  if (!token || !storedUser?.status) return;
+
+  // 🚫 DO NOT redirect admins from Home
+  if (storedUser.role_name === "ADMIN") {
+    return;
+  }
+
+  if (storedUser.status === "pending") {
+    navigate("/pending-approval");
+  } else if (storedUser.status === "active") {
+    if (
+      storedUser.role_name === "ORGANIZATION" ||
+      storedUser.role === "organization"
+    ) {
+      navigate("/orgDashboard");
+    } else {
+      navigate("/userDashboard");
     }
-  }, [navigate]);
+  }
+}, [navigate]);
+
 
   const handleGetStarted = () => {
     setShowLogin(true);
