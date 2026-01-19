@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import assetClient from "axios";
 import {
   FaCarSide,
   FaTree,
@@ -69,9 +69,9 @@ const getDetailsUrl = (asset) => {
     const loadData = async () => {
       try {
         const [metricsRes, workflowRes, approvedRes] = await Promise.all([
-          axios.get("/api/assets/metrics"),
-          axios.get("/api/assets/workflow"),
-          axios.get("/api/assets/approved"),
+         assetClient.get("/api/assets/metrics"),
+         assetClient.get("/api/assets/workflow"),
+          assetClient.get("/api/assets/approved"),
         ]);
 
         setMetrics({
@@ -230,7 +230,7 @@ const getDetailsUrl = (asset) => {
   // actual backend call when confirmed
   const handleAcceptConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
+ await assetClient.put(`/api/org-assets/${asset.id}/status`, {
   status: "approved",
 });
 
@@ -263,7 +263,7 @@ const getDetailsUrl = (asset) => {
 
   const handleRejectConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
+ await assetClient.put(`/api/org-assets/${asset.id}/status`, {
   status: "rejected",
 });
 
@@ -318,7 +318,7 @@ const getDetailsUrl = (asset) => {
     if (activeWorkflowTab !== "rejected") return;
 
     const loadRejected = async () => {
-      const res = await axios.get("/api/assets/rejected");
+      const res = await assetClient.get("/api/assets/rejected");
 
       setRejectedAssets(
   res.data.map((a, index) => ({
