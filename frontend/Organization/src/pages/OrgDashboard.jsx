@@ -174,12 +174,12 @@ const OrgDashboard = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to log out?")) {
-      localStorage.clear(); // Clear Org App session
-      // Redirect to User App's logout route to clear its session too
-      window.location.href = "https://user-carbonpositive2026.onrender.com"; 
-    }
-  };
+  if (window.confirm("Are you sure you want to log out?")) {
+    localStorage.clear();
+    window.location.replace("https://user-carbonpositive2026.onrender.com");
+  }
+};
+
 
   const [notifications] = useState([
     { id: 1, type: "alert", message: "Compliance report due in 3 days" },
