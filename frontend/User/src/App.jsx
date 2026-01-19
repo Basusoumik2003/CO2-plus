@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
@@ -45,12 +46,16 @@ const App = () => {
     return <p>Redirecting to Organization Dashboard...</p>;
   };
 
-  const RedirectToAdmin = () => {
-    useEffect(() => {
-      window.location.href = "https://admin-carbonpositive2026.onrender.com";
-    }, []);
-    return <p>Redirecting to Admin Dashboard...</p>;
-  };
+ const RedirectToAdmin = () => {
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    window.location.replace(
+      `https://admin-carbonpositive2026.onrender.com?token=${token}`
+    );
+  }, []);
+  return null;
+};
+
 
   const Logout = () => {
     useEffect(() => {
