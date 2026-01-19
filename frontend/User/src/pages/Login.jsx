@@ -123,9 +123,10 @@ const Login = ({ onLogin, onClose, onSwitchToSignup }) => {
           navigate("/orgDashboard");
           break;
 
-        case "ADMIN":
-          window.location.href = "https://admin-carbonpositive2026.onrender.com";
-          break;
+       case "ADMIN":
+  navigate("/adminDashboard");
+  break;
+
 
         default:
           navigate("/");
