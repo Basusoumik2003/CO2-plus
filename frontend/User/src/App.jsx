@@ -41,10 +41,6 @@ const App = () => {
     }, []);
     return <p>Redirecting to Organization Dashboard...</p>;
   };
-
-  const RedirectToAdmin = () => {
-  return <Navigate to="https://admin-carbonpositive2026.onrender.com" replace />;
-};
     
 
 
@@ -148,7 +144,7 @@ const App = () => {
         <Route path="/game" element={<Games />} />
         <Route path="/userDashboard" element={<UserDashboard />} />
         <Route path="/orgDashboard" element={<RedirectToOrg />} />
-        <Route path="/adminDashboard" element={<RedirectToAdmin />} />
+
         <Route path="/logout" element={<Logout />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/blog" element={<Blog isAuthenticated={isAuthenticated} />} />
