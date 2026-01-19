@@ -7,6 +7,7 @@ const config = require("../config/env");
  * CORS CONFIGURATION
  * ================================
  */
+
 const allowedOrigins = [
   // 🔹 Local development
   "http://localhost:5173",
@@ -25,33 +26,32 @@ const allowedOrigins = [
   "https://www.gocarbonpositive.com",
 
   // 🔹 From environment
-  config.frontendUrl || process.env.FRONTEND_URL
+  config.frontendUrl,
+  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow non-browser tools (Postman, curl, mobile apps)
+    // ✅ Allow non-browser tools (Postman, curl, mobile apps)
     if (!origin) return callback(null, true);
 
-    // Allow all localhost automatically
-    if (
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("http://127.0.0.1")
-    ) {
+    // ✅ Allow localhost
+    if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
       return callback(null, true);
     }
 
-    // Allow production frontends
+    // ✅ Allow whitelisted domains
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    console.log(`❌ CORS blocked: ${origin}`);
-    callback(new Error("Not allowed by CORS"));
+    console.error("❌ CORS blocked:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200, // for legacy browsers
 };
 
 /**
@@ -59,19 +59,21 @@ const corsOptions = {
  * SECURITY HEADERS
  * ================================
  */
+
 const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
       connectSrc: [
         "'self'",
         "https://authentication-service2026.onrender.com",
-        "https://notification-service2026.onrender.com"
+        "https://notification-service2026.onrender.com",
+        "https://asset-service2026.onrender.com",
       ],
-      fontSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
@@ -86,8 +88,8 @@ const helmetConfig = helmet({
  * REQUEST SANITIZATION
  * ================================
  */
+
 const sanitizeRequest = (req, res, next) => {
-  // Skip sanitization for multipart/form-data
   if (
     req.headers["content-type"] &&
     req.headers["content-type"].includes("multipart/form-data")
