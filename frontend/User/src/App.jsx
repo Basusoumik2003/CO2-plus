@@ -168,6 +168,11 @@ const App = () => {
         <Route path="/games/memory" element={<Memorygame />} />
         <Route path="/activities" element={<Activities />} />
         <Route path="/activity/:activityKey" element={<ActivityDetail />} />
+
+        <Route
+  path="/adminDashboard"
+  element={<Navigate to="https://admin-carbonpositive2026.onrender.com" replace />}
+/>
       </Routes>
     </>
   );
