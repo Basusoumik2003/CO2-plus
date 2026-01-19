@@ -43,11 +43,10 @@ const App = () => {
   };
 
   const RedirectToAdmin = () => {
-    useEffect(() => {
-      window.location.href = "https://admin-carbonpositive2026.onrender.com";
-    }, []);
-    return <p>Redirecting to Admin Dashboard...</p>;
-  };
+  return <Navigate to="https://admin-carbonpositive2026.onrender.com" replace />;
+};
+    
+
 
   const Logout = () => {
     useEffect(() => {
