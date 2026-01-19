@@ -12,6 +12,26 @@ import {
 } from "react-icons/fa6";
 
 import "../styles/AssetManagement.css";
+/* ================= HARD CODED ADMIN ASSET CLIENT ================= */
+
+const api = axios.create({
+  baseURL: "https://asset-service2026.onrender.com",
+  timeout: 15000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+api.interceptors.request.use((config) => {
+  const token =
+    localStorage.getItem("authToken") || localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+/* ================================================================ */
 
 const ITEMS_PER_PAGE = 10;
 
@@ -70,9 +90,9 @@ const getDetailsUrl = (asset) => {
     const loadData = async () => {
       try {
         const [metricsRes, workflowRes, approvedRes] = await Promise.all([
-          axios.get("/api/assets/metrics"),
-          axios.get("/api/assets/workflow"),
-          axios.get("/api/assets/approved"),
+          api.get("/api/assets/metrics"),
+          api.get("/api/assets/workflow"),
+          api.get("/api/assets/approved"),
         ]);
 
         setMetrics({
@@ -188,7 +208,7 @@ const getDetailsUrl = (asset) => {
   /* ---------- MODAL / WORKFLOW HANDLERS ---------- */
 const openReviewModal = async (asset) => {
   try {
-    const res = await axios.get(getDetailsUrl(asset));
+    const res = await api.get(getDetailsUrl(asset));
     const data = res.data;
 
     // ✅ ORGANISATION TREE ASSET
@@ -265,7 +285,7 @@ const openReviewModal = async (asset) => {
   // actual backend call when confirmed
   const handleAcceptConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
+ await api.put(`/api/org-assets/${asset.id}/status`, {
   status: "approved",
 });
 
@@ -298,7 +318,7 @@ const openReviewModal = async (asset) => {
 
   const handleRejectConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
+ await api.put(`/api/org-assets/${asset.id}/status`, {
   status: "rejected",
 });
 
@@ -353,7 +373,7 @@ const openReviewModal = async (asset) => {
     if (activeWorkflowTab !== "rejected") return;
 
     const loadRejected = async () => {
-      const res = await axios.get("/api/assets/rejected");
+      const res = await api.get("/api/assets/rejected");
 
       setRejectedAssets(
   res.data.map((a, index) => ({
