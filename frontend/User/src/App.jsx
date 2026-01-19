@@ -49,12 +49,16 @@ const App = () => {
     return <p>Redirecting to Organization Dashboard...</p>;
   };
 
-  const RedirectToAdmin = () => {
-    useEffect(() => {
-      window.location.href = "https://admin-carbonpositive2026.onrender.com";
-    }, []);
-    return <p>Redirecting to Admin Dashboard...</p>;
-  };
+ const RedirectToAdmin = () => {
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    window.location.replace(
+      `https://admin-carbonpositive2026.onrender.com?token=${token}`
+    );
+  }, []);
+  return null;
+};
+
 
   const Logout = () => {
     useEffect(() => {
