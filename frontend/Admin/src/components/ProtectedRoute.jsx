@@ -1,45 +1,41 @@
 import { useEffect, useState } from "react";
 
-const USER_APP_URL =
-  import.meta.env.VITE_USER_APP_URL || "http://localhost:5173";
-
 const ProtectedRoute = ({ children }) => {
-  const [isChecking, setIsChecking] = useState(true);
-  const [hasToken, setHasToken] = useState(false);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const token =
+    // 1️⃣ URL se token lo
+    const queryToken = new URLSearchParams(window.location.search).get("token");
+
+    // 2️⃣ localStorage / cookie se bhi try karo
+    const storedToken =
       localStorage.getItem("authToken") || getCookie("authToken");
 
-    console.log("🔍 Checking token:", token ? "Found" : "Not found");
+    const token = queryToken || storedToken;
 
     if (!token) {
-      console.log("❌ No token found. Redirecting to user app...");
-      window.location.replace(USER_APP_URL);
+      // ❌ USER APP PE MAT BHEJO
+      console.log("❌ Token missing, admin access denied");
       return;
     }
 
-    console.log("✅ Token found. Rendering dashboard.");
-    setHasToken(true);
-    setIsChecking(false);
+    // 3️⃣ Token save karo (first time)
+    if (queryToken) {
+      localStorage.setItem("authToken", queryToken);
+    }
+
+    console.log("✅ Admin token accepted");
+    setAllowed(true);
   }, []);
 
-  if (isChecking) return null;
+  if (!allowed) return <h2>Unauthorized</h2>;
 
-  return hasToken ? children : null;
+  return children;
 };
 
-// 🍪 Cookie helper
 function getCookie(name) {
-  const nameEQ = name + "=";
-  const cookies = document.cookie.split(";");
-  for (let cookie of cookies) {
-    cookie = cookie.trim();
-    if (cookie.startsWith(nameEQ)) {
-      return cookie.substring(nameEQ.length);
-    }
-  }
-  return null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? match[2] : null;
 }
 
 export default ProtectedRoute;
