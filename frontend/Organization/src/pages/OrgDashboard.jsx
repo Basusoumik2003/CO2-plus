@@ -174,9 +174,15 @@ const OrgDashboard = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+  console.log("LOGOUT CLICKED");
+
+  alert("Logout clicked");
+
   if (window.confirm("Are you sure you want to log out?")) {
+    console.log("CONFIRMED");
     localStorage.clear();
-    window.location.replace("https://user-carbonpositive2026.onrender.com");
+
+    window.location.replace("https://google.com");
   }
 };
 
