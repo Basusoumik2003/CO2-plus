@@ -257,31 +257,24 @@ export const getOrgAssetsForWorkflow = async (req, res) => {
 };
 export const getApprovedOrgAssets = async (req, res) => {
   try {
-    const { status } = req.query;
-
     let sql = `
       SELECT
-        oa.plantation_id,
+        oa.plantation_id AS id,              -- ✅ frontend expects id
         oa.u_id,
         oa.status,
         oa.created_at,
+        'organisation' AS submittedByType,  -- ✅ VERY IMPORTANT
+        'TREE' AS type,                     -- ✅ asset type
         ti.image_id,
         ti.image_url
       FROM org_assets oa
       LEFT JOIN tree_images ti
         ON ti.image_id = oa.image_id
+      WHERE oa.status = 'approved'
+      ORDER BY oa.created_at DESC
     `;
 
-    const params = [];
-
-    if (status) {
-      sql += ` WHERE oa.status = $1`;
-      params.push(status);
-    }
-
-    sql += ` ORDER BY oa.created_at DESC`;
-
-    const { rows } = await query(sql, params);
+    const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
     console.error("ORG APPROVED ASSETS ERROR:", err);
@@ -289,4 +282,37 @@ export const getApprovedOrgAssets = async (req, res) => {
   }
 };
 
+
+export const getOrgAssetById = async (req, res) => {
+  try {
+    const { id } = req.params; // UUID
+
+    const sql = `
+      SELECT
+        plantation_id,
+        species_name,
+        trees_planted,
+        avg_height,
+        avg_dbh,
+        plantation_date,
+        location_lat,
+        location_long,
+        u_id,
+        image_id
+      FROM org_assets
+      WHERE plantation_id = $1
+    `;
+
+    const { rows } = await query(sql, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Org asset not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("ORG ASSET DETAILS ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch org asset details" });
+  }
+};
 
