@@ -55,6 +55,19 @@ const getStatusUpdateUrl = (asset) => {
   return `/api/assets/${asset.assetType}/${asset.id}/status`;
 };
 
+
+const updateStatus = async (asset, status) => {
+  const url = getStatusUpdateUrl(asset);
+
+  if (asset.submittedByType === "organisation") {
+    return axios.put(url, { status });
+  }
+
+  // 🔥 INDIVIDUAL ASSETS → PATCH
+  return axios.patch(url, { status });
+};
+
+
 const getDetailsUrl = (asset) => {
   if (asset.submittedByType === "organisation") {
     return `/api/org-assets/${asset.id}/details`; // ✅ UUID safe
@@ -263,14 +276,9 @@ const openReviewModal = async (asset) => {
   };
 
   // actual backend call when confirmed
-  const handleAcceptConfirmed = async (asset) => {
+ const handleAcceptConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
-  status: "approved",
-});
-
-
-
+    await updateStatus(asset, "approved");
 
     setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
 
@@ -278,7 +286,6 @@ const openReviewModal = async (asset) => {
       {
         ...asset,
         status: "Approved",
-        submittedByType: asset.submittedByType,
       },
       ...prev,
     ]);
@@ -291,19 +298,14 @@ const openReviewModal = async (asset) => {
 
     closeReviewModal();
   } catch (err) {
-    console.error("Approve failed", err);
+    console.error("Approve failed", err.response?.data || err);
   }
 };
 
 
-  const handleRejectConfirmed = async (asset) => {
+ const handleRejectConfirmed = async (asset) => {
   try {
- await axios.put(`/api/org-assets/${asset.id}/status`, {
-  status: "rejected",
-});
-
-
-
+    await updateStatus(asset, "rejected");
 
     setWorkflowAssets((prev) => prev.filter((a) => a.id !== asset.id));
 
@@ -315,10 +317,9 @@ const openReviewModal = async (asset) => {
 
     closeReviewModal();
   } catch (err) {
-    console.error("Reject failed", err);
+    console.error("Reject failed", err.response?.data || err);
   }
 };
-
 
   // open confirmation modal
   const requestConfirm = (action, asset) => {
