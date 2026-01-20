@@ -1,8 +1,29 @@
 const { Resend } = require("resend");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient = null;
+
+// Lazy initialization (SAFE for Cloud Run)
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("⚠️ RESEND_API_KEY not set. OTP emails disabled.");
+    return null;
+  }
+
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+    console.log("✅ Resend client initialized");
+  }
+
+  return resendClient;
+}
 
 const sendOTP = async (email, otp) => {
+  const resend = getResendClient();
+
+  if (!resend) {
+    throw new Error("Email service not configured");
+  }
+
   try {
     const htmlContent = `
       <div style="font-family:Arial, sans-serif; padding:20px;">
@@ -17,12 +38,15 @@ const sendOTP = async (email, otp) => {
     `;
 
     const response = await resend.emails.send({
-  from: "Soumik <onboarding@resend.dev>", // ✅ use this directly for testing
-  to: "soumikbasu2003@gmail.com",         // ✅ send only to your own email
-  subject: "Your OTP Code",
-  html: htmlContent,
-});
+      from: "CO2 Plus <onboarding@resend.dev>", // testing OK
+      to: email,                               // dynamic email
+      subject: "Your OTP Code",
+      html: htmlContent,
+    });
+
     console.log("✅ OTP sent successfully:", response);
+    return response;
+
   } catch (error) {
     console.error("❌ Failed to send OTP:", error);
     throw new Error("Email sending failed");
@@ -30,4 +54,3 @@ const sendOTP = async (email, otp) => {
 };
 
 module.exports = sendOTP;
-

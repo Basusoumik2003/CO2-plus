@@ -1,16 +1,12 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
-const { query } = require("../config/database.js");
+const { query } = require("../config/database");
 
 /* =========================================================
    METRICS (summary cards)
 ========================================================= */
-export const getMetrics = async (req, res) => {
+const getMetrics = async (req, res) => {
   try {
     const sql = `
       SELECT
-        /* ================= TOTAL APPROVED ================= */
         (
           (SELECT COUNT(*) FROM ev_master_data WHERE status = 'approved') +
           (SELECT COUNT(*) FROM trees WHERE status = 'approved') +
@@ -18,7 +14,6 @@ export const getMetrics = async (req, res) => {
           (SELECT COUNT(*) FROM org_assets WHERE status = 'approved')
         ) AS "approved",
 
-        /* ================= TOTAL REJECTED ================= */
         (
           (SELECT COUNT(*) FROM ev_master_data WHERE status = 'rejected') +
           (SELECT COUNT(*) FROM trees WHERE status = 'rejected') +
@@ -26,7 +21,6 @@ export const getMetrics = async (req, res) => {
           (SELECT COUNT(*) FROM org_assets WHERE status = 'rejected')
         ) AS "rejected",
 
-        /* ================= PENDING REVIEW ================= */
         (
           (SELECT COUNT(*) FROM ev_master_data WHERE status = 'pending') +
           (SELECT COUNT(*) FROM trees WHERE status = 'pending') +
@@ -34,7 +28,6 @@ export const getMetrics = async (req, res) => {
           (SELECT COUNT(*) FROM org_assets WHERE status = 'pending')
         ) AS "pendingReview",
 
-        /* ================= TYPE WISE TOTAL ================= */
         (SELECT COUNT(*) FROM ev_master_data WHERE status = 'approved') AS "totalEV",
         (
           (SELECT COUNT(*) FROM trees WHERE status = 'approved') +
@@ -51,14 +44,13 @@ export const getMetrics = async (req, res) => {
   }
 };
 
-
 /* =========================================================
    WORKFLOW (pending review list)
 ========================================================= */
-export const getWorkflowAssets = async (req, res) => {
+const getWorkflowAssets = async (req, res) => {
   try {
     const sql = `
-      SELECT
+SELECT
   ev_id::text AS id,
   'EV' AS type,
   u_id::text AS u_id,
@@ -115,17 +107,13 @@ ORDER BY submitted_on DESC;
   }
 };
 
-
-
-
-
 /* =========================================================
-   APPROVED ASSETS (filter by type)
+   APPROVED ASSETS
 ========================================================= */
-export const getApprovedAssets = async (req, res) => {
+const getApprovedAssets = async (req, res) => {
   try {
     const sql = `
-      SELECT
+SELECT
   ev_id::text AS id,
   'EV' AS type,
   u_id::text AS u_id,
@@ -168,8 +156,7 @@ FROM org_assets
 WHERE status = 'approved'
 
 ORDER BY created_at DESC;
-
-    `;
+`;
 
     const { rows } = await query(sql);
     res.json(rows);
@@ -179,17 +166,13 @@ ORDER BY created_at DESC;
   }
 };
 
-
-
-
-
 /* =========================================================
    APPROVE / REJECT
 ========================================================= */
-export const updateAssetStatus = async (req, res) => {
+const updateAssetStatus = async (req, res) => {
   try {
-    const { id, type } = req.params; // type = ev | tree | solar
-    const { status } = req.body;     // approved | rejected
+    const { id, type } = req.params;
+    const { status } = req.body;
 
     let sql = "";
 
@@ -210,54 +193,56 @@ export const updateAssetStatus = async (req, res) => {
   }
 };
 
-
-export const getRejectedAssets = async (req, res) => {
+/* =========================================================
+   REJECTED ASSETS
+========================================================= */
+const getRejectedAssets = async (req, res) => {
   try {
     const sql = `
-      SELECT
-        ev_id::text AS id,
-        'EV' AS type,
-        u_id::text AS u_id,
-        created_at,
-        'individual' AS submittedByType
-      FROM ev_master_data
-      WHERE status = 'rejected'
+SELECT
+  ev_id::text AS id,
+  'EV' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM ev_master_data
+WHERE status = 'rejected'
 
-      UNION ALL
+UNION ALL
 
-      SELECT
-        tid::text AS id,
-        'TREE' AS type,
-        u_id::text AS u_id,
-        created_at,
-        'individual' AS submittedByType
-      FROM trees
-      WHERE status = 'rejected'
+SELECT
+  tid::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM trees
+WHERE status = 'rejected'
 
-      UNION ALL
+UNION ALL
 
-      SELECT
-        suid::text AS id,
-        'SOLAR' AS type,
-        u_id::text AS u_id,
-        created_at,
-        'individual' AS submittedByType
-      FROM solar_panels
-      WHERE status = 'rejected'
+SELECT
+  suid::text AS id,
+  'SOLAR' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'individual' AS submittedByType
+FROM solar_panels
+WHERE status = 'rejected'
 
-      UNION ALL
+UNION ALL
 
-      SELECT
-        plantation_id::text AS id,
-        'TREE' AS type,
-        u_id::text AS u_id,
-        created_at,
-        'organisation' AS submittedByType
-      FROM org_assets
-      WHERE status = 'rejected'
+SELECT
+  plantation_id::text AS id,
+  'TREE' AS type,
+  u_id::text AS u_id,
+  created_at,
+  'organisation' AS submittedByType
+FROM org_assets
+WHERE status = 'rejected'
 
-      ORDER BY created_at DESC
-    `;
+ORDER BY created_at DESC
+`;
 
     const { rows } = await query(sql);
     res.json(rows);
@@ -267,72 +252,25 @@ export const getRejectedAssets = async (req, res) => {
   }
 };
 
-
-
-
-export const getAssetDetails = async (req, res) => {
+/* =========================================================
+   ASSET DETAILS
+========================================================= */
+const getAssetDetails = async (req, res) => {
   try {
     const { type, id } = req.params;
 
     let sql = "";
 
     if (type === "ev") {
-      sql = `
-        SELECT
-          ev_id,
-          u_id,
-          category,
-          manufacturers,
-          model,
-          purchase_year,
-          energy_consumed,
-          primary_charging_type,
-          range,
-          grid_emission_factor,
-          top_speed,
-          charging_time,
-          motor_power,
-          status,
-          created_at
-        FROM ev_master_data
-        WHERE ev_id = $1
-      `;
+      sql = `SELECT * FROM ev_master_data WHERE ev_id = $1`;
     }
 
     if (type === "tree") {
-      sql = `
-        SELECT
-          tid,
-          u_id,
-          treename,
-          botanicalname,
-          plantingdate,
-          height,
-          dbh,
-          location,
-          created_by,
-          status,
-          created_at
-        FROM trees
-        WHERE tid = $1
-      `;
+      sql = `SELECT * FROM trees WHERE tid = $1`;
     }
 
     if (type === "solar") {
-      sql = `
-        SELECT
-          suid,
-          u_id,
-          installed_capacity,
-          installation_date,
-          energy_generation_value,
-          grid_emission_factor,
-          inverter_type,
-          status,
-          created_at
-        FROM solar_panels
-        WHERE suid = $1
-      `;
+      sql = `SELECT * FROM solar_panels WHERE suid = $1`;
     }
 
     const { rows } = await query(sql, [id]);
@@ -341,4 +279,14 @@ export const getAssetDetails = async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch asset details" });
   }
+};
+
+/* ================= EXPORTS ================= */
+module.exports = {
+  getMetrics,
+  getWorkflowAssets,
+  getApprovedAssets,
+  getRejectedAssets,
+  updateAssetStatus,
+  getAssetDetails,
 };

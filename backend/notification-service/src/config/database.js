@@ -1,69 +1,96 @@
 const { Pool } = require('pg');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
-// Create connection pool
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD),
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-});
+// ⚠️ Cloud Run me dotenv ki zarurat nahi hoti
+// dotenv sirf local development ke liye hota hai
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
-});
+let pool;
 
-// Test connection
+/**
+ * Lazy pool creation
+ * Pool tabhi banega jab pehli baar DB access hoga
+ */
+const getPool = () => {
+  if (!pool) {
+    if (!process.env.DB_HOST) {
+      console.warn('⚠️ DB_HOST not set. Database disabled.');
+      return null;
+    }
+
+    pool = new Pool({
+      host: process.env.DB_HOST,           // 👈 Cloud SQL PUBLIC IP
+      port: Number(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: String(process.env.DB_PASSWORD),
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+      ssl: false // Cloud SQL public IP ke liye
+    });
+
+    pool.on('error', (err) => {
+      console.error('❌ Unexpected DB pool error:', err.message);
+    });
+  }
+
+  return pool;
+};
+
+/**
+ * Test DB connection (non-blocking)
+ */
 const testConnection = async () => {
-  let client;
   try {
-    client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
-    console.log('✅ Notification Service - Database connected successfully');
+    const pool = getPool();
+    if (!pool) return false;
+
+    const client = await pool.connect();
+    await client.query('SELECT 1');
     client.release();
+
+    console.log('✅ Notification DB connected');
     return true;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
-    if (client) client.release();
+  } catch (err) {
+    console.error('⚠️ Notification DB connection failed:', err.message);
     return false;
   }
 };
 
-// Query function
+/**
+ * Query helper
+ */
 const query = async (text, params) => {
-  try {
-    const res = await pool.query(text, params);
-    return res;
-  } catch (error) {
-    console.error('Query error:', error.message);
-    throw error;
-  }
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  return pool.query(text, params);
 };
 
-// Transaction function
+/**
+ * Transaction helper
+ */
 const transaction = async (callback) => {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const result = await callback(client);
     await client.query('COMMIT');
     return result;
-  } catch (error) {
+  } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Transaction error:', error.message);
-    throw error;
+    throw err;
   } finally {
     client.release();
   }
 };
 
 module.exports = {
-  pool,
   query,
   transaction,
   testConnection

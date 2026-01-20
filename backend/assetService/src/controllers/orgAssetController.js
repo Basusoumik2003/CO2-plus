@@ -1,12 +1,9 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
-const { query } = require("../config/database.js");
+const { query } = require("../config/database");
 
 /* =========================================================
    CREATE ORG ASSET
 ========================================================= */
-export const createOrgAsset = async (req, res) => {
+const createOrgAsset = async (req, res) => {
   try {
     const {
       plantationId,
@@ -25,27 +22,25 @@ export const createOrgAsset = async (req, res) => {
       ImageId,
     } = req.body;
 
-    // validate user
     const userCheck = await query(
       `SELECT u_id FROM users WHERE u_id = $1`,
       [u_id]
     );
+
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // validate image (optional)
-    // validate image (optional)
-if (ImageId) {
-  const imageCheck = await query(
-    `SELECT image_id FROM tree_images WHERE image_id = $1`,
-    [ImageId]
-  );
+    if (ImageId) {
+      const imageCheck = await query(
+        `SELECT image_id FROM tree_images WHERE image_id = $1`,
+        [ImageId]
+      );
 
-  if (imageCheck.rows.length === 0) {
-    return res.status(404).json({ error: "Image not found" });
-  }
-}
+      if (imageCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+    }
 
     const sql = `
       INSERT INTO org_assets (
@@ -104,26 +99,12 @@ if (ImageId) {
 /* =========================================================
    GET ALL ORG ASSETS
 ========================================================= */
-export const getAllOrgAssets = async (req, res) => {
+const getAllOrgAssets = async (req, res) => {
   try {
     const sql = `
       SELECT
-        oa.plantation_id,
-        oa.t_oid,
-        oa.u_id,
-        oa.location_lat,
-        oa.location_long,
-        oa.area_hactare,
-        oa.species_name,
-        oa.trees_planted,
-        oa.avg_height,
-        oa.avg_dbh,
-        oa.survival_rate,
-        oa.plantation_date,
-        oa.base_line_land,
-        oa.status,
-        ti.image_url,
-        oa.created_at
+        oa.*,
+        ti.image_url
       FROM org_assets oa
       LEFT JOIN tree_images ti 
         ON ti.image_id = oa.image_id
@@ -133,16 +114,12 @@ export const getAllOrgAssets = async (req, res) => {
     const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
-    console.error("GET ALL ORG ASSETS ERROR:", err);
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch org assets" });
   }
 };
 
-
-/* =========================================================
-   GET ORG ASSET BY ID
-========================================================= */
-export const getOrgAssetsByUser = async (req, res) => {
+const getOrgAssetsByUser = async (req, res) => {
   try {
     const { u_id } = req.params;
 
@@ -155,25 +132,15 @@ export const getOrgAssetsByUser = async (req, res) => {
 
     const { rows } = await query(sql, [u_id]);
 
-    res.json({
-      success: true,
-      data: rows,
-    });
+    res.json({ success: true, data: rows });
   } catch (err) {
-    console.error("ORG ASSET FETCH ERROR:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch org assets",
-    });
+    res.status(500).json({ error: "Failed to fetch org assets" });
   }
 };
 
-/* =========================================================
-   GET ORG ASSETS BY STATUS
-========================================================= */
-export const getOrgAssetsByStatus = async (req, res) => {
+const getOrgAssetsByStatus = async (req, res) => {
   try {
-    const { status } = req.query; // pending | approved | rejected
+    const { status } = req.query;
 
     const sql = `
       SELECT plantation_id, u_id, species_name, trees_planted, status, created_at
@@ -189,104 +156,105 @@ export const getOrgAssetsByStatus = async (req, res) => {
   }
 };
 
-/* =========================================================
-   APPROVE / REJECT ORG ASSET
-========================================================= */
-export const updateOrgAssetStatus = async (req, res) => {
+const updateOrgAssetStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // approved | rejected
+    const { status } = req.body;
 
-    const sql = `
-      UPDATE org_assets
-      SET status = $1
-      WHERE plantation_id = $2
-    `;
+    await query(
+      `UPDATE org_assets SET status = $1 WHERE plantation_id = $2`,
+      [status, id]
+    );
 
-    await query(sql, [status, id]);
-
-    return res.json({ success: true });
+    res.json({ success: true });
   } catch (err) {
-    console.error("ORG STATUS UPDATE ERROR:", err);
-    return res.status(500).json({ error: "Failed to update status" });
+    res.status(500).json({ error: "Failed to update status" });
   }
 };
 
-
-/* =========================================================
-   DELETE ORG ASSET
-========================================================= */
-export const deleteOrgAsset = async (req, res) => {
+const deleteOrgAsset = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const sql = `DELETE FROM org_assets WHERE plantation_id = $1`;
-    await query(sql, [id]);
-
-    res.json({ success: true, message: "Org asset deleted" });
+    await query(`DELETE FROM org_assets WHERE plantation_id = $1`, [id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Delete failed" });
   }
 };
 
+const getOrgAssetsForWorkflow = async (req, res) => {
+  try {
+    const sql = `
+      SELECT
+        plantation_id AS id,
+        'TREE' AS type,
+        status,
+        u_id,
+        created_at AS submitted_on,
+        'organisation' AS submittedByType
+      FROM org_assets
+      ORDER BY created_at DESC
+    `;
 
-/* =========================================================
-   GET ORG ASSETS FOR WORKFLOW (ADMIN)
-========================================================= */
-export const getOrgAssetsForWorkflow = async (req, res) => {
+    const { rows } = await query(sql);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load org workflow assets" });
+  }
+};
+
+const getApprovedOrgAssets = async (req, res) => {
   try {
     const sql = `
       SELECT
         oa.plantation_id AS id,
-        'TREE' AS type,
-        oa.status,
         oa.u_id,
-        oa.created_at AS submitted_on,
-        'organisation' AS submittedByType
+        oa.status,
+        oa.created_at,
+        'organisation' AS submittedByType,
+        'TREE' AS type,
+        ti.image_id,
+        ti.image_url
       FROM org_assets oa
-      WHERE oa.status IN ('pending', 'approved', 'rejected')
+      LEFT JOIN tree_images ti ON ti.image_id = oa.image_id
+      WHERE oa.status = 'approved'
       ORDER BY oa.created_at DESC
     `;
 
     const { rows } = await query(sql);
     res.json(rows);
   } catch (err) {
-    console.error("ORG WORKFLOW ERROR:", err);
-    res.status(500).json({ error: "Failed to load org workflow assets" });
-  }
-};
-export const getApprovedOrgAssets = async (req, res) => {
-  try {
-    const { status } = req.query;
-
-    let sql = `
-      SELECT
-        oa.plantation_id,
-        oa.u_id,
-        oa.status,
-        oa.created_at,
-        ti.image_id,
-        ti.image_url
-      FROM org_assets oa
-      LEFT JOIN tree_images ti
-        ON ti.image_id = oa.image_id
-    `;
-
-    const params = [];
-
-    if (status) {
-      sql += ` WHERE oa.status = $1`;
-      params.push(status);
-    }
-
-    sql += ` ORDER BY oa.created_at DESC`;
-
-    const { rows } = await query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    console.error("ORG APPROVED ASSETS ERROR:", err);
     res.status(500).json({ error: "Failed to fetch org assets" });
   }
 };
 
+const getOrgAssetById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const { rows } = await query(
+      `SELECT * FROM org_assets WHERE plantation_id = $1`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Org asset not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch org asset details" });
+  }
+};
+
+module.exports = {
+  createOrgAsset,
+  getAllOrgAssets,
+  getOrgAssetsByUser,
+  getOrgAssetsByStatus,
+  updateOrgAssetStatus,
+  deleteOrgAsset,
+  getOrgAssetsForWorkflow,
+  getApprovedOrgAssets,
+  getOrgAssetById,
+};

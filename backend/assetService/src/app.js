@@ -1,12 +1,6 @@
 const express = require("express");
 const compression = require("compression");
 const morgan = require("morgan");
-const config = require("./config/env");
-const logger = require("./utils/logger");
-const assetRoutes = require("./routes/assetRoutes");
- const orgAssetRoutes = require("./routes/orgAssetRoutes");
-
-
 
 // Security middleware
 const {
@@ -19,22 +13,21 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 // Routes
+const assetRoutes = require("./routes/assetRoutes");
+const orgAssetRoutes = require("./routes/orgAssetRoutes");
 const routes = require("./routes");
 
 const app = express();
 
-/**
- * ========================================
- * GLOBAL MIDDLEWARE
- * ========================================
- */
+/* =====================================================
+   GLOBAL MIDDLEWARE
+===================================================== */
 
 // Security headers & CORS
 app.use(configureHelmet());
 app.use(configureCORS());
 
-// Body parsing - express.json() automatically skips multipart/form-data
-// But we'll be explicit to avoid any issues
+// Body parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -44,43 +37,25 @@ app.use(compression());
 // Sanitize input
 app.use(sanitizeRequest);
 
-// Logging
-if (config.nodeEnv === "development") {
-  app.use(morgan("dev"));
-} else {
-  app.use(
-    morgan("combined", {
-      stream: {
-        write: (msg) => logger.info(msg.trim()),
-      },
-    })
-  );
-}
+// Logging (Cloud Run safe)
+app.use(morgan("combined"));
 
-/**
- * ========================================
- * ROUTES
- * ========================================
- */
-
-//asset management route 
-app.use("/api/assets", assetRoutes);
-app.use("/api/org-assets", orgAssetRoutes);
+/* =====================================================
+   ROOT & HEALTH (NO RATE LIMIT)
+===================================================== */
 
 // Root
 app.get("/", (req, res) => {
-  res.json({
+  res.status(200).json({
     status: "success",
     service: "CO2+ Asset Management API",
     version: "1.0.0",
-    environment: config.nodeEnv,
+    environment: process.env.NODE_ENV || "production",
   });
 });
 
-
-
-// Health check
-app.get("/api/v1/health", (req, res) => {
+// Health check (Cloud Run expects fast response)
+app.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
     message: "Service is healthy",
@@ -88,45 +63,24 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-// Rate limit ONLY API
+/* =====================================================
+   API (RATE LIMITED)
+===================================================== */
+
 app.use("/api/v1", apiLimiter);
 
-// API routes
+// Asset routes
+app.use("/api/v1/assets", assetRoutes);
+app.use("/api/v1/org-assets", orgAssetRoutes);
+
+// Other API routes
 app.use("/api/v1", routes);
 
-/**
- * ========================================
- * ERROR HANDLING
- * ========================================
- */
+/* =====================================================
+   ERROR HANDLING
+===================================================== */
 
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-/**
- * ========================================
- * PROCESS SAFETY
- * ========================================
- */
-
-process.on("unhandledRejection", (err) => {
-  logger.error("UNHANDLED PROMISE REJECTION 💥", {
-    error: err.message,
-    stack: err.stack,
-  });
-
-  if (config.nodeEnv === "production") {
-    process.exit(1);
-  }
-});
-
-process.on("uncaughtException", (err) => {
-  logger.error("UNCAUGHT EXCEPTION 💥", {
-    error: err.message,
-    stack: err.stack,
-  });
-  process.exit(1);
-});
-
 module.exports = app;
-

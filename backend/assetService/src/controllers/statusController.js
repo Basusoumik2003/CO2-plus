@@ -1,4 +1,4 @@
-const { query } = require("../config/database");
+const { query } = require("../config/database.js");
 const winston = require("winston");
 
 const logger = winston.createLogger({
