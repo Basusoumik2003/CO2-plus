@@ -22,23 +22,17 @@ const generateTicketId = async () => {
 };
 
 /**
- * CREATE TICKET (PUBLIC / ORG / CONTACT FORM)
+ * USER: CREATE TICKET (LOGGED IN)
  * POST /api/tickets
  */
 exports.createTicket = async (req, res) => {
     try {
-        const {
-            name,
-            email,
-            subject,
-            message,
-            category,
-            priority
-        } = req.body;
+        const { subject, message, category, priority } = req.body;
+        const { u_id } = req.user; // from auth middleware
 
-        if (!name || !email || !subject || !message) {
+        if (!subject || !message) {
             return res.status(400).json({
-                message: "name, email, subject and message are required"
+                message: "Subject and message are required"
             });
         }
 
@@ -47,17 +41,15 @@ exports.createTicket = async (req, res) => {
         await pool.query(
             `INSERT INTO admin_tickets (
                 ticket_id,
-                name,
-                email,
+                u_id,
                 subject,
                 message,
                 category,
                 priority
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            ) VALUES ($1,$2,$3,$4,$5,$6)`,
             [
                 ticket_id,
-                name,
-                email,
+                u_id,
                 subject,
                 message,
                 category || "general",
@@ -85,9 +77,14 @@ exports.createTicket = async (req, res) => {
 exports.getAllTickets = async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT *
-             FROM admin_tickets
-             ORDER BY created_at DESC`
+            `SELECT 
+                t.*,
+                u.name,
+                u.email
+             FROM admin_tickets t
+             JOIN users u
+               ON t.u_id = u.u_id
+             ORDER BY t.created_at DESC`
         );
 
         res.json(result.rows);
@@ -109,9 +106,14 @@ exports.getTicketById = async (req, res) => {
         const { ticket_id } = req.params;
 
         const result = await pool.query(
-            `SELECT *
-             FROM admin_tickets
-             WHERE ticket_id = $1`,
+            `SELECT 
+                t.*,
+                u.name,
+                u.email
+             FROM admin_tickets t
+             JOIN users u
+               ON t.u_id = u.u_id
+             WHERE t.ticket_id = $1`,
             [ticket_id]
         );
 
@@ -182,7 +184,7 @@ exports.updateTicket = async (req, res) => {
 };
 
 /**
- * ADMIN: DELETE TICKET (OPTIONAL)
+ * ADMIN: DELETE TICKET
  * DELETE /api/tickets/:ticket_id
  */
 exports.deleteTicket = async (req, res) => {
