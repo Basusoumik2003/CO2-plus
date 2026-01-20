@@ -7,6 +7,8 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
+
+
 const app = express();
 
 // ==================== SECURITY ====================
@@ -91,6 +93,7 @@ const { verifyToken } = require("./middlewares/authorize");
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
+
 
 // Health check
 app.get("/health", (req, res) => {
